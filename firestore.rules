@@ -22,7 +22,11 @@ service cloud.firestore {
 
     // User Mappings: Users can only read/write their own mapping
     match /userMappings/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // SECURITY: Prevent users from changing their organization ID after registration
+      allow update: if isAuthenticated() && request.auth.uid == userId 
+                    && request.resource.data.orgId == resource.data.orgId;
     }
 
     // Organizations: 
