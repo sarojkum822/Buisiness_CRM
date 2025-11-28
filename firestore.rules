@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to get the user's organization ID from userMappings
+    function getUserOrgId() {
+      return get(/databases/$(database)/documents/userMappings/$(request.auth.uid)).data.orgId;
+    }
+
+    // Helper to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper to check if the document belongs to the user's organization
+    function belongsToUserOrg(resourceData) {
+      return resourceData.orgId == getUserOrgId();
+    }
+
+    // --- Collection Rules ---
+
+    // User Mappings: Users can only read/write their own mapping
+    match /userMappings/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Organizations: 
+    // - Create: Authenticated users can create (happens on signup)
+    // - Read/Update: Users can access their own org
+    match /organizations/{orgId} {
+      allow create: if isAuthenticated(); 
+      allow read, update: if isAuthenticated() && getUserOrgId() == orgId;
+      
+      // Subcollection: Users within an organization
+      match /users/{userId} {
+        allow read, write: if isAuthenticated() && getUserOrgId() == orgId;
+      }
+    }
+
+    // Products
+    match /products/{productId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+      allow update: if isAuthenticated() && belongsToUserOrg(resource.data) && belongsToUserOrg(request.resource.data);
+      allow delete: if isAuthenticated() && belongsToUserOrg(resource.data);
+    }
+
+    // Sales
+    match /sales/{saleId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+      // Sales are generally immutable, but allowing update for now if needed (e.g. voiding)
+      allow update: if isAuthenticated() && belongsToUserOrg(resource.data) && belongsToUserOrg(request.resource.data);
+    }
+
+    // Customers
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+      allow update: if isAuthenticated() && belongsToUserOrg(resource.data) && belongsToUserOrg(request.resource.data);
+      allow delete: if isAuthenticated() && belongsToUserOrg(resource.data);
+    }
+
+    // Customer Transactions
+    match /customer_transactions/{txnId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+    }
+
+    // Stock Movements
+    match /stockMovements/{movementId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+    }
+
+    // Daily Stats
+    match /dailyStats/{statId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+      allow update: if isAuthenticated() && belongsToUserOrg(resource.data) && belongsToUserOrg(request.resource.data);
+    }
+
+    // Monthly Stats
+    match /monthlyStats/{statId} {
+      allow read: if isAuthenticated() && belongsToUserOrg(resource.data);
+      allow create: if isAuthenticated() && belongsToUserOrg(request.resource.data);
+      allow update: if isAuthenticated() && belongsToUserOrg(resource.data) && belongsToUserOrg(request.resource.data);
+    }
+  }
+}
