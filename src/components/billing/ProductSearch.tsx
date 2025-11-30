@@ -8,6 +8,11 @@ import BarcodeScanner from '@/components/stock/BarcodeScanner';
 
 // ...
 
+interface ProductSearchProps {
+    onProductSelect: (product: Product) => void;
+    orgId: string;
+}
+
 export function ProductSearch({ onProductSelect, orgId }: ProductSearchProps) {
     const { products } = useProducts();
 
