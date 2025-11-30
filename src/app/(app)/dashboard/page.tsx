@@ -1,20 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, doc, getDocs, onSnapshot, query, orderBy, limit, where, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query, orderBy, limit, where, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Product, Sale, DailyStats, Customer } from '@/types';
-import { SummaryCards } from '@/components/dashboard/SummaryCards';
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { TopProducts } from '@/components/dashboard/TopProducts';
 import { RecentSales } from '@/components/dashboard/RecentSales';
-import { ProductPerformanceChart } from '@/components/dashboard/ProductPerformanceChart';
 import { QuickActions } from '@/components/dashboard/QuickActions';
+import { EnhancedMetricCard } from '@/components/dashboard/EnhancedMetricCard';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SalesTrendChart } from '@/components/dashboard/SalesTrendChart';
-import { DeadStockList } from '@/components/dashboard/DeadStockList';
+import { DollarSign, ShoppingBag, TrendingUp, Users } from 'lucide-react';
 
 export default function DashboardPage() {
     const { orgId } = useAuth();
@@ -29,293 +28,225 @@ export default function DashboardPage() {
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
 
-    // Real-time customers listener for Udhaar calculation
+    // Real-time customers listener
     useEffect(() => {
         if (!orgId) return;
-
-        const customersRef = collection(db, 'customers');
-        const q = query(customersRef, where('orgId', '==', orgId));
-
+        const q = query(collection(db, 'customers'), where('orgId', '==', orgId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const customersData = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            })) as Customer[];
-
-            setCustomers(customersData);
+            setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         });
-
         return () => unsubscribe();
     }, [orgId]);
 
-    // Real-time products listener
+    // Fetch initial data
     useEffect(() => {
         if (!orgId) return;
 
-        const productsRef = collection(db, 'products');
-        const q = query(productsRef, where('orgId', '==', orgId), orderBy('name', 'asc'));
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Fetch today's stats
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todayQuery = query(
+                    collection(db, 'dailyStats'),
+                    where('date', '==', todayStr),
+                    where('orgId', '==', orgId)
+                );
+                const todaySnapshot = await getDocs(todayQuery);
+                setTodayStats(todaySnapshot.empty ? null : todaySnapshot.docs[0].data() as DailyStats);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const productsData = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate() || new Date(),
-                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-            })) as Product[];
+                // Fetch products
+                const productsSnapshot = await getDocs(query(collection(db, 'products'), where('orgId', '==', orgId)));
+                setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
 
-            setProducts(productsData);
-            setLoading(false);
-        });
+                // Fetch recent sales
+                const salesQuery = query(
+                    collection(db, 'sales'),
+                    where('orgId', '==', orgId),
+                    orderBy('createdAt', 'desc'),
+                    limit(10)
+                );
+                const salesSnapshot = await getDocs(salesQuery);
+                setSales(salesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate() || new Date(),
+                } as Sale)));
 
-        return () => unsubscribe();
-    }, [orgId]);
+                // Fetch all sales for monthly stats
+                const allSalesQuery = query(collection(db, 'sales'), where('orgId', '==', orgId));
+                const allSalesSnapshot = await getDocs(allSalesQuery);
+                setAllSales(allSalesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate() || new Date(),
+                } as Sale)));
 
-    // Real-time sales listener (last 5 for display)
-    useEffect(() => {
-        if (!orgId) return;
-
-        const salesRef = collection(db, 'sales');
-        const q = query(salesRef, where('orgId', '==', orgId), orderBy('createdAt', 'desc'), limit(5));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const salesData = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate() || new Date(),
-            })) as Sale[];
-
-            setSales(salesData);
-        });
-
-        return () => unsubscribe();
-    }, [orgId]);
-
-    // Real-time all sales listener for monthly calculation
-    useEffect(() => {
-        if (!orgId) return;
-
-        const salesRef = collection(db, 'sales');
-        const q = query(salesRef, where('orgId', '==', orgId), orderBy('createdAt', 'desc'));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const salesData = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate() || new Date(),
-            })) as Sale[];
-
-            setAllSales(salesData);
-        });
-
-        return () => unsubscribe();
-    }, [orgId]);
-
-    // Real-time today's stats listener
-    useEffect(() => {
-        if (!orgId) return;
-
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-        const statsRef = doc(db, 'dailyStats', `${orgId}_${dateStr}`);
-
-        const unsubscribe = onSnapshot(statsRef, (snapshot) => {
-            if (snapshot.exists()) {
-                setTodayStats({
-                    id: snapshot.id,
-                    ...snapshot.data(),
-                    createdAt: snapshot.data().createdAt?.toDate() || new Date(),
-                } as DailyStats);
-            } else {
-                setTodayStats(null);
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+            } finally {
+                setLoading(false);
             }
-        });
+        };
 
-        return () => unsubscribe();
+        fetchData();
     }, [orgId]);
 
     // Calculate monthly stats
     useEffect(() => {
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
         const monthlySales = allSales.filter(sale => sale.createdAt >= firstDayOfMonth);
 
-        const monthlyRevenue = monthlySales.reduce((sum, sale) => sum + sale.grandTotal, 0);
-        const monthlyProfit = monthlySales.reduce((sum, sale) => sum + (sale.grandTotal - sale.totalCost), 0);
-
         setMonthlyStats({
-            revenue: monthlyRevenue,
-            profit: monthlyProfit,
+            revenue: monthlySales.reduce((sum, sale) => sum + sale.grandTotal, 0),
+            profit: monthlySales.reduce((sum, sale) => sum + (sale.grandTotal - sale.totalCost), 0),
             sales: monthlySales.length,
         });
     }, [allSales]);
 
-    // Clear all data for testing
-    const handleClearAllData = async () => {
+    // Real-time daily stats for chart
+    useEffect(() => {
         if (!orgId) return;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-        setClearing(true);
-        try {
-            const batch = writeBatch(db);
+        const q = query(
+            collection(db, 'dailyStats'),
+            where('orgId', '==', orgId),
+            where('date', '>=', dateStr),
+            orderBy('date', 'asc')
+        );
 
-            // Delete all products
-            const productsQ = query(collection(db, 'products'), where('orgId', '==', orgId));
-            const productsSnapshot = await getDocs(productsQ);
-            productsSnapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setDailyStats(snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+            } as DailyStats)));
+        });
 
-            // Delete all sales
-            const salesQ = query(collection(db, 'sales'), where('orgId', '==', orgId));
-            const salesSnapshot = await getDocs(salesQ);
-            salesSnapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
+        return () => unsubscribe();
+    }, [orgId]);
 
-            // Delete all stock movements
-            const movementsQ = query(collection(db, 'stockMovements'), where('orgId', '==', orgId));
-            const movementsSnapshot = await getDocs(movementsQ);
-            movementsSnapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
+    // Calculate stats for cards
+    const totalRevenue = todayStats?.totalSalesAmount || 0;
+    const totalSales = todayStats?.totalBills || 0;
+    const totalProfit = todayStats?.totalProfit || 0;
+    const totalCustomers = customers.length;
 
-            // Delete all daily stats
-            const statsQ = query(collection(db, 'dailyStats'), where('orgId', '==', orgId));
-            const statsSnapshot = await getDocs(statsQ);
-            statsSnapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
+    // Mock trend data
+    const revenueTrend = { value: '12%', isPositive: true, label: 'vs yesterday' };
+    const salesTrend = { value: '8%', isPositive: true, label: 'vs yesterday' };
+    const profitTrend = { value: '15%', isPositive: true, label: 'vs yesterday' };
+    const customerTrend = { value: '3', isPositive: true, label: 'new today' };
 
-            // Delete all customers
-            const customersQ = query(collection(db, 'customers'), where('orgId', '==', orgId));
-            const customersSnapshot = await getDocs(customersQ);
-            customersSnapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
-
-            await batch.commit();
-
-            setShowConfirmDialog(false);
-            alert('✅ All data cleared successfully!');
-        } catch (error) {
-            console.error('Error clearing data:', error);
-            alert('❌ Error clearing data. Please try again.');
-        } finally {
-            setClearing(false);
-        }
-    };
-
-    // Calculate metrics
-    const todayRevenue = todayStats?.totalSalesAmount || 0;
-    const todayProfit = todayStats?.totalProfit || 0;
-    const totalProducts = products.length;
-    const lowStockCount = products.filter((p) => p.currentStock <= p.lowStockThreshold).length;
-
-    const totalUdhaar = customers.reduce((sum, customer) => sum + (customer.totalCredit || 0), 0);
-
-    // Calculate overdue (> 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const overdueUdhaar = customers.reduce((sum, customer) => {
-        if ((customer.totalCredit || 0) > 0 && customer.lastVisit && customer.lastVisit < thirtyDaysAgo) {
-            return sum + customer.totalCredit;
-        }
-        return sum;
-    }, 0);
+    const sparklineData1 = [{ value: 10 }, { value: 15 }, { value: 12 }, { value: 20 }, { value: 18 }, { value: 25 }, { value: 22 }];
+    const sparklineData2 = [{ value: 5 }, { value: 8 }, { value: 6 }, { value: 10 }, { value: 9 }, { value: 12 }, { value: 11 }];
+    const sparklineData3 = [{ value: 200 }, { value: 250 }, { value: 220 }, { value: 300 }, { value: 280 }, { value: 350 }, { value: 320 }];
+    const sparklineData4 = [{ value: 100 }, { value: 102 }, { value: 105 }, { value: 108 }, { value: 110 }, { value: 112 }, { value: 115 }];
 
     return (
-        <div className="p-6 md:p-8">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-neutral-900">Dashboard</h1>
-                <p className="mt-2 text-neutral-600">
-                    Welcome back! Here's an overview of your business.
-                </p>
+        <div className="min-h-screen bg-neutral-50 p-6 md:p-8">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
+                    <p className="text-neutral-600">Welcome back, Saroj Kumar</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="text-sm font-medium text-neutral-600">
+                        {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setShowConfirmDialog(true)}>Clear Data</Button>
+                </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="mb-8">
-                <SummaryCards
-                    todayRevenue={todayRevenue}
-                    todayProfit={todayProfit}
-
-                    lowStockCount={lowStockCount}
-                    totalUdhaar={totalUdhaar}
-                    overdueUdhaar={overdueUdhaar}
-                    loading={loading}
+            <div className="mb-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                <EnhancedMetricCard
+                    title="Today's Revenue"
+                    value={`₹${totalRevenue.toLocaleString()}`}
+                    trend={revenueTrend}
+                    icon={DollarSign}
+                    gradient="bg-gradient-to-br from-blue-500 to-blue-600"
+                    sparklineData={sparklineData1}
+                />
+                <EnhancedMetricCard
+                    title="Today's Sales"
+                    value={`${totalSales} bills`}
+                    trend={salesTrend}
+                    icon={ShoppingBag}
+                    gradient="bg-gradient-to-br from-purple-500 to-purple-600"
+                    sparklineData={sparklineData2}
+                />
+                <EnhancedMetricCard
+                    title="Today's Profit"
+                    value={`₹${totalProfit.toLocaleString()}`}
+                    trend={profitTrend}
+                    icon={TrendingUp}
+                    gradient="bg-gradient-to-br from-green-500 to-green-600"
+                    sparklineData={sparklineData3}
+                />
+                <EnhancedMetricCard
+                    title="Total Customers"
+                    value={totalCustomers.toString()}
+                    trend={customerTrend}
+                    icon={Users}
+                    gradient="bg-gradient-to-br from-orange-500 to-orange-600"
+                    sparklineData={sparklineData4}
                 />
             </div>
 
-            {/* Quick Actions */}
-            <div className="mb-8">
-                <QuickActions />
-            </div>
-
-            {/* Profit Analytics Section */}
-            <div className="mb-8 grid gap-6 sm:grid-cols-3">
-                <div className="rounded-lg border border-neutral-200 bg-white p-6">
-                    <div className="mb-2 text-sm text-neutral-600">Today's Profit</div>
-                    <div className={`text-2xl font-bold ${todayProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ₹{todayProfit.toFixed(2)}
-                    </div>
-                    <div className="mt-1 text-xs text-neutral-500">
-                        {todayStats?.totalBills || 0} bills today
-                    </div>
+            <div className="mb-8 grid gap-6 lg:grid-cols-5">
+                <div className="lg:col-span-3">
+                    <SalesTrendChart dailyStats={dailyStats} loading={loading} />
                 </div>
-
-                <div className="rounded-lg border border-neutral-200 bg-white p-6">
-                    <div className="mb-2 text-sm text-neutral-600">Monthly Profit</div>
-                    <div className={`text-2xl font-bold ${monthlyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ₹{monthlyStats.profit.toFixed(2)}
-                    </div>
-                    <div className="mt-1 text-xs text-neutral-500">
-                        {monthlyStats.sales} sales this month
-                    </div>
-                </div>
-
-                <div className="rounded-lg border border-neutral-200 bg-white p-6">
-                    <div className="mb-2 text-sm text-neutral-600">Monthly Revenue</div>
-                    <div className="text-2xl font-bold text-neutral-900">
-                        ₹{monthlyStats.revenue.toFixed(2)}
-                    </div>
-                    <div className="mt-1 text-xs text-neutral-500">
-                        Total sales value
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content Grid */}
-            <div className="flex flex-col gap-6">
-                {/* Sales Trend Chart (Full Width) */}
-                <SalesTrendChart dailyStats={dailyStats} loading={loading} />
-
-                {/* Row 1: Alerts & Top Products */}
-                <div className="grid gap-6 lg:grid-cols-2">
-                    <LowStockAlert products={products} loading={loading} />
+                <div className="space-y-6 lg:col-span-2">
                     <TopProducts products={products} loading={loading} />
-                </div>
-
-                {/* Row 2: Intelligence & Analytics */}
-                <div className="grid gap-6 lg:grid-cols-2">
-                    <DeadStockList products={products} loading={loading} />
-                    <ProductPerformanceChart products={products} loading={loading} />
+                    <QuickActions />
                 </div>
             </div>
 
-            {/* Recent Sales */}
-            <div className="mt-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+                <LowStockAlert products={products} loading={loading} />
                 <RecentSales sales={sales} loading={loading} />
             </div>
 
-            {/* Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={showConfirmDialog}
                 onClose={() => setShowConfirmDialog(false)}
-                onConfirm={handleClearAllData}
+                onConfirm={async () => {
+                    if (!orgId) return;
+                    setClearing(true);
+                    try {
+                        const batch = writeBatch(db);
+                        const collections = ['sales', 'dailyStats', 'products'];
+
+                        for (const colName of collections) {
+                            const q = query(collection(db, colName), where('orgId', '==', orgId));
+                            const snapshot = await getDocs(q);
+                            snapshot.docs.forEach(doc => {
+                                if (colName === 'products') {
+                                    batch.update(doc.ref, { totalSoldQty: 0, totalRevenue: 0, totalProfit: 0 });
+                                } else {
+                                    batch.delete(doc.ref);
+                                }
+                            });
+                        }
+
+                        await batch.commit();
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('Error clearing data:', error);
+                        alert('Failed to clear data');
+                    } finally {
+                        setClearing(false);
+                        setShowConfirmDialog(false);
+                    }
+                }}
                 title="Clear All Data"
-                message="Are you sure you want to delete all data? This action cannot be undone. This includes all products, sales, customers, and statistics."
-                confirmText="Delete Everything"
+                message="Are you sure you want to delete all sales and reset product stats? This action cannot be undone."
+                confirmText={clearing ? 'Clearing...' : 'Clear Data'}
             />
         </div>
     );

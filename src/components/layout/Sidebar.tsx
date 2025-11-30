@@ -12,8 +12,8 @@ interface SidebarProps {
 const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Products', href: '/products', icon: Package },
-    { name: 'Stock In Scanner', href: '/stock/in', icon: Scan },
-    { name: 'Sales', href: '/sales', icon: ShoppingCart },
+    { name: 'Billing', href: '/billing', icon: ShoppingCart },
+    { name: 'Sales History', href: '/sales', icon: FileText },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Restock List', href: '/restock', icon: ClipboardList },
     { name: 'Reports', href: '/reports', icon: FileText },

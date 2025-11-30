@@ -37,10 +37,10 @@ export function DeadStockList({ products, loading = false }: DeadStockListProps)
         .filter(p => {
             // If never sold, check creation date
             if (!p.lastSaleDate) {
-                return p.createdAt < sixtyDaysAgo;
+                return new Date(p.createdAt) < sixtyDaysAgo;
             }
             // If sold, check last sale date
-            return p.lastSaleDate < sixtyDaysAgo;
+            return new Date(p.lastSaleDate) < sixtyDaysAgo;
         })
         .filter(p => p.currentStock > 0) // Only show items in stock
         .sort((a, b) => b.currentStock * b.costPrice - a.currentStock * a.costPrice) // Sort by stuck value
@@ -70,7 +70,7 @@ export function DeadStockList({ products, loading = false }: DeadStockListProps)
                             <div>
                                 <p className="font-medium text-neutral-900">{product.name}</p>
                                 <p className="text-xs text-neutral-500">
-                                    Last sold: {product.lastSaleDate ? product.lastSaleDate.toLocaleDateString() : 'Never'}
+                                    Last sold: {product.lastSaleDate ? new Date(product.lastSaleDate).toLocaleDateString() : 'Never'}
                                 </p>
                             </div>
                             <div className="text-right">

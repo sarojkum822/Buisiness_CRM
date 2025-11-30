@@ -9,9 +9,10 @@ interface BarcodeScannerProps {
     onClose?: () => void;
     variant?: 'modal' | 'embedded';
     autoStart?: boolean;
+    keepOpenOnScan?: boolean;
 }
 
-export default function BarcodeScanner({ onScan, onClose, variant = 'modal', autoStart = false }: BarcodeScannerProps) {
+export default function BarcodeScanner({ onScan, onClose, variant = 'modal', autoStart = false, keepOpenOnScan = false }: BarcodeScannerProps) {
     const [scanning, setScanning] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -55,6 +56,8 @@ export default function BarcodeScanner({ onScan, onClose, variant = 'modal', aut
 
 
 
+    const [lastScanned, setLastScanned] = useState<string | null>(null);
+
     const startScanning = async () => {
         if (!cameraId) {
             setError('No camera available');
@@ -87,9 +90,10 @@ export default function BarcodeScanner({ onScan, onClose, variant = 'modal', aut
                     // Successfully scanned
                     const now = Date.now();
 
-                    if (variant === 'embedded') {
-                        // If it's the same code and we saw it recently, ignore it
-                        if (decodedText === lastCodeRef.current) {
+                    // Debounce logic for both embedded and keepOpenOnScan
+                    if (variant === 'embedded' || keepOpenOnScan) {
+                        // If it's the same code and we saw it recently (< 2 seconds), ignore it
+                        if (decodedText === lastCodeRef.current && (now - lastSeenTimeRef.current < 2000)) {
                             lastSeenTimeRef.current = now;
                             return;
                         }
@@ -97,9 +101,14 @@ export default function BarcodeScanner({ onScan, onClose, variant = 'modal', aut
                         // It's a new code (or the old one after a break)
                         lastCodeRef.current = decodedText;
                         lastSeenTimeRef.current = now;
+
+                        // Show feedback
+                        setLastScanned(decodedText);
+                        setTimeout(() => setLastScanned(null), 1500);
+
                         onScan(decodedText);
                     } else {
-                        // For modal mode, stop and close
+                        // For modal mode without keepOpen, stop and close
                         scanner.stop().then(() => {
                             scanner.clear();
                             setScanning(false);
@@ -110,10 +119,13 @@ export default function BarcodeScanner({ onScan, onClose, variant = 'modal', aut
                 (errorMessage) => {
                     // Scanning error (no barcode found in frame)
                     // If we haven't seen the code for 0.5 second, clear it so it can be scanned again
-                    // console.debug(errorMessage); // Keep debug log but suppress lint warning if needed, or just ignore
                     const now = Date.now();
                     if (lastCodeRef.current && (now - lastSeenTimeRef.current > 500)) {
-                        lastCodeRef.current = null;
+                        // Only clear if we are NOT in keepOpen mode, or if we want to allow rapid rescanning of different codes
+                        // For keepOpen, we want to prevent double-scanning the SAME code instantly.
+                        // So we rely on the 2000ms check above.
+                        // But if the user moves the camera away, we should allow rescanning sooner?
+                        // Let's stick to the 2s delay for same code to be safe.
                     }
                 }
             );
@@ -224,6 +236,13 @@ export default function BarcodeScanner({ onScan, onClose, variant = 'modal', aut
                     style={{ width: '100%', minHeight: '300px' }}
                 />
                 {scanning && <ScannerOverlay />}
+                {lastScanned && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                        <div className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg font-bold animate-bounce">
+                            Scanned: {lastScanned}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="flex gap-3">

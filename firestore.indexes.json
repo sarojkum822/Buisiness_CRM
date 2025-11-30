@@ -15,6 +15,20 @@
             ]
         },
         {
+            "collectionGroup": "products",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "orgId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "barcode",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
             "collectionGroup": "sales",
             "queryScope": "COLLECTION",
             "fields": [

@@ -101,9 +101,11 @@ export async function recordSale(
 
     // Execute transaction
     const saleId = await runTransaction(db, async (transaction) => {
-        // ===== PHASE 1: ALL READS FIRST =====
+        // ==========================================
+        // PHASE 1: ALL READS MUST HAPPEN HERE FIRST
+        // ==========================================
 
-        // Read all products
+        // 1. Read all products
         const productReads = await Promise.all(
             saleData.items.map(item => {
                 const productRef = doc(db, 'products', item.productId);
@@ -111,7 +113,28 @@ export async function recordSale(
             })
         );
 
-        // Validate products and stock
+        // 2. Read daily stats
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const statsRef = doc(db, 'dailyStats', `${orgId}_${dateStr}`);
+        const statsDoc = await transaction.get(statsRef);
+
+        // 3. Read monthly stats (Moved up to fix "Read after Write" error)
+        const monthStr = dateStr.substring(0, 7); // YYYY-MM
+        const monthlyStatsRef = doc(db, 'monthlyStats', `${orgId}_${monthStr}`);
+        const monthlyStatsDoc = await transaction.get(monthlyStatsRef);
+
+        // 4. Read customer if provided
+        let customerDoc: any = null;
+        let customerRef: any = null;
+        if (saleData.customerId) {
+            customerRef = doc(db, 'customers', saleData.customerId);
+            customerDoc = await transaction.get(customerRef);
+        }
+
+        // ==========================================
+        // VALIDATION LOGIC (No Reads/Writes here)
+        // ==========================================
         const products: Product[] = [];
         for (let i = 0; i < productReads.length; i++) {
             const productDoc = productReads[i];
@@ -131,26 +154,15 @@ export async function recordSale(
             products.push(product);
         }
 
-        // Read daily stats
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-        const statsRef = doc(db, 'dailyStats', `${orgId}_${dateStr} `);
-        const statsDoc = await transaction.get(statsRef);
-
-        // Read customer if provided
-        let customerDoc: any = null;
-        let customerRef: any = null;
-        if (saleData.customerId) {
-            customerRef = doc(db, 'customers', saleData.customerId);
-            customerDoc = await transaction.get(customerRef);
-            if (!customerDoc.exists()) {
-                throw new Error(`Customer ${saleData.customerId} not found`);
-            }
+        if (saleData.customerId && (!customerDoc || !customerDoc.exists())) {
+            throw new Error(`Customer ${saleData.customerId} not found`);
         }
 
-        // ===== PHASE 2: ALL WRITES =====
+        // ==========================================
+        // PHASE 2: ALL WRITES HAPPEN HERE LAST
+        // ==========================================
 
-        // Create sale document
+        // 1. Create sale document
         const saleRef = doc(collection(db, 'sales'));
         const newSale = {
             ...saleData,
@@ -162,7 +174,7 @@ export async function recordSale(
         };
         transaction.set(saleRef, newSale);
 
-        // Update products and create stock movements
+        // 2. Update products and create stock movements
         for (let i = 0; i < saleData.items.length; i++) {
             const item = saleData.items[i];
             const product = products[i];
@@ -186,13 +198,13 @@ export async function recordSale(
                 type: 'OUT',
                 quantity: item.quantity,
                 unitCost: item.costPrice,
-                reason: `Sale ${invoiceNumber} `,
+                reason: `Sale ${invoiceNumber}`,
                 saleId: saleRef.id,
                 createdAt: serverTimestamp(),
             });
         }
 
-        // Update daily stats
+        // 3. Update daily stats
         if (statsDoc.exists()) {
             const stats = statsDoc.data();
             transaction.update(statsRef, {
@@ -215,11 +227,7 @@ export async function recordSale(
             });
         }
 
-        // Update monthly stats
-        const monthStr = dateStr.substring(0, 7); // YYYY-MM
-        const monthlyStatsRef = doc(db, 'monthlyStats', `${orgId}_${monthStr} `);
-        const monthlyStatsDoc = await transaction.get(monthlyStatsRef);
-
+        // 4. Update monthly stats
         if (monthlyStatsDoc.exists()) {
             const stats = monthlyStatsDoc.data();
             transaction.update(monthlyStatsRef, {
@@ -242,8 +250,8 @@ export async function recordSale(
             });
         }
 
-        // Update customer stats
-        if (customerRef && customerDoc) {
+        // 5. Update customer stats
+        if (customerRef && customerDoc && customerDoc.exists()) {
             const customer = customerDoc.data();
             const updates: any = {
                 totalVisits: (customer.totalVisits || 0) + 1,
@@ -265,8 +273,8 @@ export async function recordSale(
                 customerId: saleData.customerId,
                 type: 'SALE',
                 amount: saleData.grandTotal, // Debit
-                balanceAfter: updates.totalCredit || 0,
-                description: `Sale Invoice #${invoiceNumber} `,
+                balanceAfter: (updates.totalCredit || 0),
+                description: `Sale Invoice #${invoiceNumber}`,
                 referenceId: saleRef.id,
                 date: serverTimestamp(),
                 createdAt: serverTimestamp(),

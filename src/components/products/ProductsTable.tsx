@@ -40,6 +40,7 @@ export function ProductsTable({ products, onEdit, onAdjustStock, onDelete }: Pro
             <TableHeader>
                 <TableHead>Product</TableHead>
                 <TableHead>SKU</TableHead>
+                <TableHead>Barcode</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Selling Price</TableHead>
@@ -56,6 +57,9 @@ export function ProductsTable({ products, onEdit, onAdjustStock, onDelete }: Pro
                             </TableCell>
                             <TableCell>
                                 <span className="font-mono text-xs text-neutral-600">{product.sku}</span>
+                            </TableCell>
+                            <TableCell>
+                                <span className="font-mono text-xs text-neutral-600">{product.barcode || '-'}</span>
                             </TableCell>
                             <TableCell>
                                 <span className="text-neutral-600">{product.category}</span>
@@ -90,11 +94,7 @@ export function ProductsTable({ products, onEdit, onAdjustStock, onDelete }: Pro
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => {
-                                            if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
-                                                onDelete(product);
-                                            }
-                                        }}
+                                        onClick={() => onDelete(product)}
                                     >
                                         Delete
                                     </Button>

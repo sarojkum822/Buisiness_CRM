@@ -12,6 +12,19 @@ export const metadata: Metadata = {
   title: "ShopCRM - Business CRM & Inventory Management",
   description: "Fast, simple CRM and inventory management system for small shop owners. Track sales, manage stock, and grow your business.",
   keywords: "CRM, inventory management, small business, shop management, sales tracking",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ShopCRM",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport = {
+  themeColor: "#000000",
 };
 
 export default function RootLayout({

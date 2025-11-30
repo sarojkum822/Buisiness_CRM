@@ -38,6 +38,8 @@ export default function RapidStockIn({ orgId, onClose, onSuccess }: RapidStockIn
         inputRef.current?.focus();
     }, [showScanner, showQuickAdd]);
 
+
+
     const handleBarcodeScanned = async (barcode: string) => {
         if (!barcode.trim()) return;
 
@@ -72,10 +74,17 @@ export default function RapidStockIn({ orgId, onClose, onSuccess }: RapidStockIn
                 }]);
                 setBarcodeInput('');
             } else {
-                // Show quick add form for new product
-                setPendingBarcode(barcode);
-                setQuickAddData({ name: '', unitCost: '', quantity: '1' });
-                setShowQuickAdd(true);
+                // Add new product placeholder directly
+                setScannedItems([...scannedItems, {
+                    barcode,
+                    productId: undefined,
+                    name: `New Item (${barcode})`,
+                    quantity: 1,
+                    unitCost: 0,
+                    isNew: true
+                }]);
+                setBarcodeInput('');
+                // Optional: Play a sound here if possible, or rely on visual feedback
             }
         } catch (error) {
             console.error('Error processing barcode:', error);
@@ -403,10 +412,25 @@ export default function RapidStockIn({ orgId, onClose, onSuccess }: RapidStockIn
                 {/* Barcode Scanner Modal */}
                 {showScanner && (
                     <BarcodeScanner
-                        onScan={(barcode) => {
-                            setShowScanner(false);
-                            setBarcodeInput(barcode);
-                            handleBarcodeScanned(barcode);
+                        keepOpenOnScan={true}
+                        onScan={async (barcode) => {
+                            // For continuous scanning, we don't close the scanner immediately
+                            // We only close it if we need to show the Quick Add form (handled inside handleBarcodeScanned)
+
+                            // We need to check if it's a NEW product to decide whether to close
+                            // But handleBarcodeScanned is async.
+
+                            // Let's modify handleBarcodeScanned to return a status or handle the closing itself?
+                            // Actually, handleBarcodeScanned already sets showQuickAdd(true) if new.
+                            // If showQuickAdd becomes true, we should probably close the scanner?
+                            // But showScanner is a separate state.
+
+                            // Let's peek at the product existence here first?
+                            // No, let's just call handleBarcodeScanned.
+                            // If it's a new product, handleBarcodeScanned sets showQuickAdd(true).
+                            // We can add an effect to close scanner if showQuickAdd becomes true.
+
+                            await handleBarcodeScanned(barcode);
                         }}
                         onClose={() => setShowScanner(false)}
                     />

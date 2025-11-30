@@ -32,7 +32,7 @@ export function Input({
             <div className="relative">
                 <input
                     id={inputId}
-                    className={`w-full rounded-lg border px-3 py-2 text-sm text-neutral-900 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500 placeholder:text-neutral-600 ${error
+                    className={`w-full rounded-lg border px-3 py-2 text-sm text-neutral-900 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500 placeholder:text-neutral-400 ${error
                         ? 'border-red-500 focus:ring-red-500'
                         : 'border-neutral-300 hover:border-neutral-400'
                         } ${icon ? 'pr-10' : ''} ${className}`}

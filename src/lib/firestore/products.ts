@@ -83,16 +83,35 @@ export async function searchProductsByName(orgId: string, nameQuery: string): Pr
     if (!nameQuery || nameQuery.length < 2) return [];
 
     const productsRef = collection(db, 'products');
-    // Firestore prefix search
-    const q = query(
-        productsRef,
-        where('orgId', '==', orgId),
-        where('name', '>=', nameQuery),
-        where('name', '<=', nameQuery + '\uf8ff'),
-        limit(10)
-    );
 
-    const snapshot = await getDocs(q);
+    // Helper to run query
+    const runQuery = async (qStr: string) => {
+        const q = query(
+            productsRef,
+            where('orgId', '==', orgId),
+            where('name', '>=', qStr),
+            where('name', '<=', qStr + '\uf8ff'),
+            limit(10)
+        );
+        return await getDocs(q);
+    };
+
+    // Try exact match first (case-sensitive as typed)
+    let snapshot = await runQuery(nameQuery);
+
+    // If no results and query is lowercase, try capitalizing first letter (common case)
+    if (snapshot.empty && /^[a-z]/.test(nameQuery)) {
+        const capitalized = nameQuery.charAt(0).toUpperCase() + nameQuery.slice(1);
+        snapshot = await runQuery(capitalized);
+    }
+
+    // If still no results, try fully uppercase (e.g. SKU/Code style names)
+    if (snapshot.empty) {
+        const upper = nameQuery.toUpperCase();
+        if (upper !== nameQuery) {
+            snapshot = await runQuery(upper);
+        }
+    }
 
     return snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -150,10 +169,14 @@ export async function updateProduct(
 ): Promise<void> {
     const productRef = doc(db, 'products', productId);
 
+    console.log('🔄 Updating product in Firestore:', productId, updates);
+
     await updateDoc(productRef, {
         ...updates,
         updatedAt: serverTimestamp(),
     });
+
+    console.log('✅ Product updated successfully in Firestore');
 }
 
 /**
