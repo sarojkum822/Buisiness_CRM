@@ -52,7 +52,7 @@ export function BillingCart({ items, onUpdateQuantity, onRemove }: BillingCartPr
                                     >
                                         <Minus className="h-4 w-4" />
                                     </button>
-                                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                    <span className="w-8 text-center font-medium text-neutral-900">{item.quantity}</span>
                                     <button
                                         onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
                                         className="p-1 rounded-full hover:bg-neutral-100 text-neutral-600"

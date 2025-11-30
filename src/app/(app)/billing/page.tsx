@@ -207,7 +207,7 @@ export default function BillingPage() {
             <div className="w-full md:w-2/3 flex flex-col gap-4">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-neutral-200">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Add Items</h2>
+                        <h2 className="text-lg font-semibold text-neutral-900">Add Items</h2>
                         <button
                             onClick={handleReset}
                             className="text-sm text-red-600 hover:text-red-800 font-medium px-3 py-1 rounded-md hover:bg-red-50 transition-colors"
@@ -221,7 +221,7 @@ export default function BillingPage() {
                 {/* Quick Actions / Common Products could go here */}
                 <div className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-neutral-200 overflow-y-auto">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Cart Items ({cart.length})</h2>
+                        <h2 className="text-lg font-semibold text-neutral-900">Cart Items ({cart.length})</h2>
                         <button onClick={() => setCart([])} className="text-red-500 text-sm hover:underline">Clear Cart</button>
                     </div>
                     <BillingCart
@@ -235,7 +235,7 @@ export default function BillingPage() {
             {/* Right Side: Checkout & Totals */}
             <div className="w-full md:w-1/3 flex flex-col gap-4">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-neutral-200 h-full flex flex-col">
-                    <h2 className="text-xl font-bold mb-6">Checkout</h2>
+                    <h2 className="text-xl font-bold mb-6 text-neutral-900">Checkout</h2>
 
                     {/* Customer Selection */}
                     <div className="mb-6">
