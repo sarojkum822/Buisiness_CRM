@@ -17,6 +17,7 @@ import { SmartProductScanner } from '@/components/products/SmartProductScanner';
 import { EnhancedProductForm } from '@/components/products/EnhancedProductForm';
 
 
+import { Toast, ToastType } from '@/components/ui/Toast';
 
 const CATEGORIES = ['All', 'Electronics', 'Groceries', 'Clothing', 'Hardware', 'Other'];
 
@@ -38,6 +39,12 @@ export default function ProductsPage() {
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+    const [toast, setToast] = useState<{ message: string; type: ToastType; visible: boolean }>({
+        message: '',
+        type: 'success',
+        visible: false,
+    });
 
     // Real-time products listener
     useEffect(() => {
@@ -95,9 +102,15 @@ export default function ProductsPage() {
         setFilteredProducts(filtered);
     }, [products, searchTerm, categoryFilter]);
 
+    const showToast = (message: string, type: ToastType = 'success') => {
+        setToast({ message, type, visible: true });
+    };
+
+    // ... existing useEffects
+
     const handleProductSave = async (data: any, mode: 'create' | 'update', productId?: string) => {
         if (!orgId) {
-            alert('Error: Organization ID not found');
+            showToast('Error: Organization ID not found', 'error');
             return;
         }
 
@@ -106,26 +119,26 @@ export default function ProductsPage() {
                 console.log('Creating product:', data);
                 const newProductId = await createProduct(orgId, data);
                 console.log('Product created successfully:', newProductId);
-                alert(`Product "${data.name}" created successfully!`);
+                showToast(`Product "${data.name}" created successfully!`, 'success');
                 setShowAddModal(false);
                 setInitialBarcode('');
             } else if (mode === 'update' && productId) {
                 console.log('Updating product:', productId, data);
                 await updateProduct(orgId, productId, data);
                 console.log('Product updated successfully');
-                alert(`Product "${data.name}" updated successfully!`);
+                showToast(`Product "${data.name}" updated successfully!`, 'success');
                 setShowEditModal(false);
                 setSelectedProduct(null);
             }
         } catch (error) {
             console.error('Error saving product:', error);
-            alert(`Failed to ${mode} product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            showToast(`Failed to ${mode} product: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
         }
     };
 
     const handleAdjustStock = async (adjustmentData: any) => {
         if (!orgId || !selectedProduct) {
-            alert('Error: Missing organization ID or product');
+            showToast('Error: Missing organization ID or product', 'error');
             return;
         }
 
@@ -133,18 +146,18 @@ export default function ProductsPage() {
             console.log('Adjusting stock for:', selectedProduct.name, adjustmentData);
             await adjustStock(orgId, selectedProduct.id!, adjustmentData);
             console.log('Stock adjusted successfully');
-            alert(`Stock adjusted successfully for "${selectedProduct.name}"!`);
+            showToast(`Stock adjusted successfully for "${selectedProduct.name}"!`, 'success');
             setShowStockModal(false);
             setSelectedProduct(null);
         } catch (error) {
             console.error('Error adjusting stock:', error);
-            alert(`Failed to adjust stock: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            showToast(`Failed to adjust stock: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
         }
     };
 
     const handleDeleteProduct = async (product: Product) => {
         if (!orgId || !product.id) {
-            alert('Error: Missing organization ID or product ID');
+            showToast('Error: Missing organization ID or product ID', 'error');
             return;
         }
 
@@ -152,18 +165,18 @@ export default function ProductsPage() {
             console.log('Deleting product:', product.name);
             await deleteProduct(orgId, product.id);
             console.log('Product deleted successfully');
-            alert(`Product "${product.name}" deleted successfully!`);
+            showToast(`Product "${product.name}" deleted successfully!`, 'success');
             setShowDeleteModal(false);
             setProductToDelete(null);
         } catch (error) {
             console.error('Error deleting product:', error);
-            alert(`Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            showToast(`Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
         }
     };
 
     const handleBatchSave = async (items: any[]) => {
         if (!orgId) {
-            alert('Error: Organization ID not found');
+            showToast('Error: Organization ID not found', 'error');
             return;
         }
 
@@ -192,31 +205,31 @@ export default function ProductsPage() {
 
             // Show results
             if (errorCount === 0) {
-                alert(`✅ Successfully saved all ${successCount} products!`);
+                showToast(`✅ Successfully saved all ${successCount} products!`, 'success');
                 setShowAddModal(false);
             } else {
-                alert(`⚠️ Saved ${successCount} products.\nFailed to save ${errorCount} products:\n${errors.join(', ')}`);
+                showToast(`⚠️ Saved ${successCount} products. Failed: ${errorCount}`, 'error');
             }
         } catch (error) {
             console.error('Batch save error:', error);
-            alert('Failed to save products');
+            showToast('Failed to save products', 'error');
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex min-h-[400px] items-center justify-center p-6">
-                <div className="text-center">
-                    <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-900"></div>
-                    <p className="text-sm text-neutral-600">Loading products...</p>
-                </div>
-            </div>
-        );
-    }
+    // ... existing loading check
 
     return (
         <div className="p-6 md:p-8">
-            {/* Header */}
+            {toast.visible && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    duration={toast.type === 'success' ? 500 : 3000}
+                    onClose={() => setToast((prev) => ({ ...prev, visible: false }))}
+                />
+            )}
+
+            {/* ... rest of the component */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-neutral-900">Products</h1>
                 <p className="mt-2 text-neutral-600">
@@ -224,7 +237,7 @@ export default function ProductsPage() {
                 </p>
             </div>
 
-            {/* Filters and Actions */}
+            {/* ... rest of the JSX */}
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-1 gap-4">
                     <div className="flex-1 sm:max-w-xs">
@@ -313,12 +326,10 @@ export default function ProductsPage() {
                             setShowStockModal(true);
                         }}
                         onViewHistory={() => {
-                            // TODO: Implement history view
-                            alert('History feature coming soon!');
+                            showToast('History feature coming soon!', 'info');
                         }}
                         onDuplicate={() => {
-                            // TODO: Implement duplicate
-                            alert('Duplicate feature coming soon!');
+                            showToast('Duplicate feature coming soon!', 'info');
                         }}
                     />
                 )}
@@ -398,8 +409,6 @@ export default function ProductsPage() {
                     </div>
                 )}
             </Modal>
-
-
         </div>
     );
 }
