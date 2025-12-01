@@ -1,15 +1,24 @@
 import { Sale } from '@/types';
 
 interface ReceiptTemplateProps {
-    sale: any; // Using any for now to include extra fields like customerName easily
+    sale: any;
     orgName: string;
+    gstNumber?: string;
+    customerBalance?: number; // Current balance AFTER this sale
 }
 
-export function ReceiptTemplate({ sale, orgName }: ReceiptTemplateProps) {
+export function ReceiptTemplate({ sale, orgName, gstNumber, customerBalance }: ReceiptTemplateProps) {
     if (!sale) return null;
+
+    // Calculate previous balance (Balance AFTER sale - Sale Amount (if credit) or 0)
+    // Actually, simpler: customerBalance passed in is the FINAL balance.
+    // If credit sale, Previous = Final - GrandTotal.
+    // If cash sale, Previous = Final.
+    // Let's just show "Total Outstanding: ₹X" which is the most important.
 
     return (
         <div className="receipt-container hidden print:block print:w-full print:h-screen bg-white text-black font-sans">
+            {/* ... (keep styles) */}
             <style jsx global>{`
                 @media print {
                     @page {
@@ -42,6 +51,7 @@ export function ReceiptTemplate({ sale, orgName }: ReceiptTemplateProps) {
                     <p className="text-sm text-neutral-600">Business Address Line 1</p>
                     <p className="text-sm text-neutral-600">City, State, Zip Code</p>
                     <p className="text-sm text-neutral-600">Phone: +91 98765 43210</p>
+                    {gstNumber && <p className="text-sm font-semibold text-neutral-800 mt-1">GSTIN: {gstNumber}</p>}
                 </div>
                 <div className="text-right">
                     <h2 className="text-2xl font-bold text-neutral-400 uppercase mb-2">Invoice</h2>
@@ -62,7 +72,7 @@ export function ReceiptTemplate({ sale, orgName }: ReceiptTemplateProps) {
                     {sale.customerName ? (
                         <div>
                             <p className="font-semibold text-lg">{sale.customerName}</p>
-                            {/* Placeholder for customer address/phone if available */}
+                            {sale.customerPhone && <p className="text-sm text-neutral-600">{sale.customerPhone}</p>}
                             <p className="text-sm text-neutral-600">Customer ID: {sale.customerId || 'N/A'}</p>
                         </div>
                     ) : (
@@ -72,7 +82,7 @@ export function ReceiptTemplate({ sale, orgName }: ReceiptTemplateProps) {
                 <div className="w-1/2 text-right">
                     <h3 className="text-xs font-bold uppercase text-neutral-500 mb-2">Payment Details</h3>
                     <p className="font-semibold capitalize">Mode: {sale.paymentMode}</p>
-                    <p className="text-sm text-neutral-600">Status: Paid</p>
+                    <p className="text-sm text-neutral-600">Status: {sale.paymentMode === 'credit' ? 'Credit' : 'Paid'}</p>
                 </div>
             </div>
 
@@ -121,6 +131,19 @@ export function ReceiptTemplate({ sale, orgName }: ReceiptTemplateProps) {
                         <span>Grand Total</span>
                         <span>₹{sale.grandTotal.toFixed(2)}</span>
                     </div>
+
+                    {/* Customer Balance Section */}
+                    {customerBalance !== undefined && (
+                        <div className="mt-4 pt-4 border-t border-neutral-200">
+                            <div className="flex justify-between text-sm font-medium text-neutral-800">
+                                <span>Total Outstanding</span>
+                                <span>₹{customerBalance.toFixed(2)}</span>
+                            </div>
+                            <p className="text-xs text-right text-neutral-500 mt-1">
+                                (Includes current bill)
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 

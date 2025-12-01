@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     AreaChart,
     Area,
@@ -18,7 +18,13 @@ interface SalesTrendChartProps {
 }
 
 export function SalesTrendChart({ dailyStats, loading = false }: SalesTrendChartProps) {
-    if (loading) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (loading || !mounted) {
         return (
             <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
                 <div className="mb-6 flex items-center justify-between">
@@ -43,29 +49,6 @@ export function SalesTrendChart({ dailyStats, loading = false }: SalesTrendChart
             profit: stat.totalProfit
         }));
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
-                    <p className="mb-2 font-semibold text-neutral-900">{label}</p>
-                    <div className="space-y-1 text-xs">
-                        <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-neutral-600">Sales:</span>
-                            <span className="font-medium text-blue-600">₹{payload[0].value.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                            <span className="text-neutral-600">Profit:</span>
-                            <span className="font-medium text-green-600">₹{payload[1].value.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    };
-
     return (
         <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center justify-between">
@@ -87,7 +70,7 @@ export function SalesTrendChart({ dailyStats, loading = false }: SalesTrendChart
                     </div>
                 </div>
             ) : (
-                <div className="h-[300px] w-full">
+                <div className="h-[300px] w-full min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
                             data={data}
@@ -141,3 +124,26 @@ export function SalesTrendChart({ dailyStats, loading = false }: SalesTrendChart
         </div>
     );
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+                <p className="mb-2 font-semibold text-neutral-900">{label}</p>
+                <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                        <span className="text-neutral-600">Sales:</span>
+                        <span className="font-medium text-blue-600">₹{payload[0].value.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span className="text-neutral-600">Profit:</span>
+                        <span className="font-medium text-green-600">₹{payload[1].value.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};

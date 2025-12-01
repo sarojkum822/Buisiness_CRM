@@ -3,6 +3,7 @@ export interface Organization {
   id: string;
   name: string;
   ownerId: string;
+  gstNumber?: string;
   createdAt: Date;
 }
 
@@ -56,9 +57,11 @@ export interface Sale {
   tax: number;
   grandTotal: number;
   totalCost: number;
+  totalPaid?: number; // Amount actually paid (0 for full credit)
   paymentMode: 'cash' | 'card' | 'upi' | 'credit' | 'other';
-  customerId?: string;
-  customerName?: string;
+  customerId?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
   createdAt: Date;
 }
 
@@ -120,4 +123,18 @@ export interface CustomerTransaction {
   description: string;
   referenceId?: string; // Sale ID or Payment ID
   date: Date;
+}
+
+// Supplier types
+export interface Supplier {
+  id?: string;
+  orgId: string;
+  name: string;
+  contactPerson?: string;
+  phone: string;
+  email?: string;
+  gstNumber?: string;
+  address?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

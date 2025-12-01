@@ -168,7 +168,7 @@ export default function DashboardPage() {
                     value={`₹${totalRevenue.toLocaleString()}`}
                     trend={revenueTrend}
                     icon={DollarSign}
-                    gradient="bg-gradient-to-br from-blue-500 to-blue-600"
+                    color="blue"
                     sparklineData={sparklineData1}
                 />
                 <EnhancedMetricCard
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                     value={`${totalSales} bills`}
                     trend={salesTrend}
                     icon={ShoppingBag}
-                    gradient="bg-gradient-to-br from-purple-500 to-purple-600"
+                    color="purple"
                     sparklineData={sparklineData2}
                 />
                 <EnhancedMetricCard
@@ -184,7 +184,7 @@ export default function DashboardPage() {
                     value={`₹${totalProfit.toLocaleString()}`}
                     trend={profitTrend}
                     icon={TrendingUp}
-                    gradient="bg-gradient-to-br from-green-500 to-green-600"
+                    color="green"
                     sparklineData={sparklineData3}
                 />
                 <EnhancedMetricCard
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                     value={totalCustomers.toString()}
                     trend={customerTrend}
                     icon={Users}
-                    gradient="bg-gradient-to-br from-orange-500 to-orange-600"
+                    color="orange"
                     sparklineData={sparklineData4}
                 />
             </div>

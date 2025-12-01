@@ -18,8 +18,14 @@ export function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormPr
         phone: initialData?.phone || '',
         email: initialData?.email || '',
         address: initialData?.address || '',
-        totalCredit: initialData?.totalCredit || 0,
     });
+
+    // Separate state for balance logic to handle 0 amount correctly
+    const [amount, setAmount] = useState(Math.abs(initialData?.totalCredit || 0));
+    const [balanceType, setBalanceType] = useState<'collect' | 'pay'>(
+        (initialData?.totalCredit || 0) < 0 ? 'pay' : 'collect'
+    );
+
     const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +44,13 @@ export function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormPr
 
         setLoading(true);
         try {
-            await onSubmit(formData);
+            // Calculate final totalCredit based on type and amount
+            const finalCredit = balanceType === 'pay' ? -Math.abs(amount) : Math.abs(amount);
+
+            await onSubmit({
+                ...formData,
+                totalCredit: finalCredit
+            });
         } catch (err: any) {
             console.error('Error saving customer:', err);
             setError(err.message || 'Failed to save customer');
@@ -96,8 +108,8 @@ export function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormPr
                         <input
                             type="radio"
                             name="balanceType"
-                            checked={formData.totalCredit >= 0}
-                            onChange={() => setFormData({ ...formData, totalCredit: Math.abs(formData.totalCredit) })}
+                            checked={balanceType === 'collect'}
+                            onChange={() => setBalanceType('collect')}
                             className="h-4 w-4 text-red-600 focus:ring-red-600"
                             disabled={loading}
                         />
@@ -110,8 +122,8 @@ export function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormPr
                         <input
                             type="radio"
                             name="balanceType"
-                            checked={formData.totalCredit < 0}
-                            onChange={() => setFormData({ ...formData, totalCredit: -Math.abs(formData.totalCredit) })}
+                            checked={balanceType === 'pay'}
+                            onChange={() => setBalanceType('pay')}
                             className="h-4 w-4 text-green-600 focus:ring-green-600"
                             disabled={loading}
                         />
@@ -125,23 +137,15 @@ export function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormPr
                     type="number"
                     min="0"
                     step="0.01"
-                    value={Math.abs(formData.totalCredit) || ''}
-                    onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setFormData({
-                            ...formData,
-                            totalCredit: formData.totalCredit >= 0 ? val : -val
-                        });
-                    }}
+                    value={amount || ''}
+                    onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                     disabled={loading}
                     placeholder="0.00"
                 />
                 <p className="mt-1 text-xs text-neutral-500">
-                    {formData.totalCredit > 0
+                    {balanceType === 'collect'
                         ? "Positive value means customer has to pay you."
-                        : formData.totalCredit < 0
-                            ? "Negative value means you have advance money from customer."
-                            : "No balance."}
+                        : "Negative value means you have advance money from customer."}
                 </p>
             </div>
 

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { updateProfile } from 'firebase/auth';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Button } from '@/components/ui/Button';
 
@@ -11,6 +13,46 @@ export default function SettingsPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [displayName, setDisplayName] = useState(user?.displayName || '');
     const [saving, setSaving] = useState(false);
+
+    // Organization State
+    const [orgNameInput, setOrgNameInput] = useState(orgName || '');
+    const [gstNumber, setGstNumber] = useState('');
+    const [isEditingOrg, setIsEditingOrg] = useState(false);
+    const [loadingOrg, setLoadingOrg] = useState(false);
+
+    // Fetch Org Details
+    useState(() => {
+        if (orgId) {
+            const fetchOrg = async () => {
+                const docRef = doc(db, 'organizations', orgId);
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    setOrgNameInput(data.name);
+                    setGstNumber(data.gstNumber || '');
+                }
+            };
+            fetchOrg();
+        }
+    });
+
+    const handleSaveOrg = async () => {
+        if (!orgId) return;
+        setSaving(true);
+        try {
+            await updateDoc(doc(db, 'organizations', orgId), {
+                name: orgNameInput,
+                gstNumber: gstNumber
+            });
+            setIsEditingOrg(false);
+            alert('✅ Organization updated successfully!');
+        } catch (error) {
+            console.error('Error updating organization:', error);
+            alert('❌ Error updating organization.');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const handleSaveProfile = async () => {
         if (!user) return;
@@ -73,7 +115,14 @@ export default function SettingsPage() {
             {activeTab === 'organization' && (
                 <div className="space-y-6">
                     <div className="rounded-lg border border-neutral-200 bg-white p-6">
-                        <h2 className="mb-4 text-lg font-semibold text-neutral-900">Organization Details</h2>
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-neutral-900">Organization Details</h2>
+                            {!isEditingOrg && (
+                                <Button variant="ghost" onClick={() => setIsEditingOrg(true)}>
+                                    Edit Details
+                                </Button>
+                            )}
+                        </div>
                         <div className="space-y-4">
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-neutral-700">
@@ -81,13 +130,30 @@ export default function SettingsPage() {
                                 </label>
                                 <input
                                     type="text"
-                                    value={orgName || ''}
-                                    disabled
-                                    className="w-full rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-2 text-neutral-500"
+                                    value={orgNameInput}
+                                    onChange={(e) => setOrgNameInput(e.target.value)}
+                                    disabled={!isEditingOrg}
+                                    className={`w-full rounded-lg border px-4 py-2 ${isEditingOrg
+                                        ? 'border-neutral-300 bg-white text-neutral-900 focus:border-neutral-900 focus:outline-none'
+                                        : 'border-neutral-300 bg-neutral-50 text-neutral-500'
+                                        }`}
                                 />
-                                <p className="mt-1 text-xs text-neutral-500">
-                                    Contact support to change your organization name
-                                </p>
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                                    GST Number
+                                </label>
+                                <input
+                                    type="text"
+                                    value={gstNumber}
+                                    onChange={(e) => setGstNumber(e.target.value)}
+                                    disabled={!isEditingOrg}
+                                    placeholder="e.g. 22AAAAA0000A1Z5"
+                                    className={`w-full rounded-lg border px-4 py-2 ${isEditingOrg
+                                        ? 'border-neutral-300 bg-white text-neutral-900 focus:border-neutral-900 focus:outline-none'
+                                        : 'border-neutral-300 bg-neutral-50 text-neutral-500'
+                                        }`}
+                                />
                             </div>
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-neutral-700">
@@ -104,6 +170,16 @@ export default function SettingsPage() {
                                 </p>
                             </div>
                         </div>
+                        {isEditingOrg && (
+                            <div className="mt-6 flex justify-end gap-3">
+                                <Button variant="ghost" onClick={() => setIsEditingOrg(false)} disabled={saving}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSaveOrg} isLoading={saving} disabled={saving}>
+                                    Save Changes
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="rounded-lg border border-neutral-200 bg-white p-6">
@@ -165,8 +241,8 @@ export default function SettingsPage() {
                                     onChange={(e) => setDisplayName(e.target.value)}
                                     disabled={!isEditing}
                                     className={`w-full rounded-lg border px-4 py-2 ${isEditing
-                                            ? 'border-neutral-300 bg-white text-neutral-900 focus:border-neutral-900 focus:outline-none'
-                                            : 'border-neutral-300 bg-neutral-50 text-neutral-500'
+                                        ? 'border-neutral-300 bg-white text-neutral-900 focus:border-neutral-900 focus:outline-none'
+                                        : 'border-neutral-300 bg-neutral-50 text-neutral-500'
                                         }`}
                                 />
                             </div>

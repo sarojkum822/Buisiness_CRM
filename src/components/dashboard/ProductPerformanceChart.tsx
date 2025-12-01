@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ScatterChart,
     Scatter,
@@ -20,7 +20,13 @@ interface ProductPerformanceChartProps {
 }
 
 export function ProductPerformanceChart({ products, loading = false }: ProductPerformanceChartProps) {
-    if (loading) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (loading || !mounted) {
         return (
             <div className="rounded-lg border border-neutral-200 bg-white p-6">
                 <div className="mb-4">
@@ -49,24 +55,6 @@ export function ProductPerformanceChart({ products, loading = false }: ProductPe
     // Define colors for different performance tiers
     const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F', '#FFBB28', '#FF8042'];
 
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload;
-            return (
-                <div className="rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
-                    <p className="font-semibold text-neutral-900">{data.name}</p>
-                    <div className="mt-1 space-y-1 text-xs text-neutral-600">
-                        <p>Sales: <span className="font-medium text-neutral-900">{data.sales} units</span></p>
-                        <p>Price: <span className="font-medium text-neutral-900">₹{data.price}</span></p>
-                        <p>Revenue: <span className="font-medium text-neutral-900">₹{data.revenue.toFixed(2)}</span></p>
-                        <p>Stock: <span className="font-medium text-neutral-900">{data.stock}</span></p>
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    };
-
     return (
         <div className="rounded-lg border border-neutral-200 bg-white p-6">
             <div className="mb-6">
@@ -82,8 +70,8 @@ export function ProductPerformanceChart({ products, loading = false }: ProductPe
                     </div>
                 </div>
             ) : (
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[300px] w-full min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <ScatterChart
                             margin={{
                                 top: 20,
@@ -126,3 +114,21 @@ export function ProductPerformanceChart({ products, loading = false }: ProductPe
         </div>
     );
 }
+
+const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <div className="rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+                <p className="font-semibold text-neutral-900">{data.name}</p>
+                <div className="mt-1 space-y-1 text-xs text-neutral-600">
+                    <p>Sales: <span className="font-medium text-neutral-900">{data.sales} units</span></p>
+                    <p>Price: <span className="font-medium text-neutral-900">₹{data.price}</span></p>
+                    <p>Revenue: <span className="font-medium text-neutral-900">₹{data.revenue.toFixed(2)}</span></p>
+                    <p>Stock: <span className="font-medium text-neutral-900">{data.stock}</span></p>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};

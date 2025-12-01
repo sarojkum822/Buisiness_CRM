@@ -7,6 +7,10 @@ import {
     signInWithPopup,
     signOut as firebaseSignOut,
     onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    sendPasswordResetEmail,
+    updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -18,7 +22,10 @@ interface AuthContextType {
     orgName: string | null;
     loading: boolean;
     orgLoading: boolean;
+    isPro: boolean;
     signInWithGoogle: () => Promise<void>;
+    signInWithEmail: (email: string, pass: string) => Promise<void>;
+    signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -28,7 +35,10 @@ const AuthContext = createContext<AuthContextType>({
     orgName: null,
     loading: true,
     orgLoading: true,
+    isPro: false,
     signInWithGoogle: async () => { },
+    signInWithEmail: async () => { },
+    signUpWithEmail: async () => { },
     logout: async () => { },
 });
 
@@ -131,6 +141,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const signInWithEmail = async (email: string, pass: string) => {
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+        } catch (error) {
+            console.error('Error signing in with Email:', error);
+            throw error;
+        }
+    };
+
+    const signUpWithEmail = async (email: string, pass: string, name: string) => {
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+            await updateProfile(userCredential.user, { displayName: name });
+            // The onAuthStateChanged listener will handle organization setup
+        } catch (error) {
+            console.error('Error signing up with Email:', error);
+            throw error;
+        }
+    };
+
     const logout = async () => {
         try {
             await firebaseSignOut(auth);
@@ -142,13 +172,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const isPro = user?.email === 'sarojkum822@gmail.com';
+
     const value = {
         user,
         orgId,
         orgName,
         loading,
         orgLoading,
+        isPro,
         signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
         logout,
     };
 

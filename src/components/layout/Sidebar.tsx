@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, ShoppingCart, Settings, Scan, Users, ClipboardList, FileText, Calendar } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Settings, Scan, Users, ClipboardList, FileText, Calendar, Truck, Zap } from 'lucide-react';
+import { SubscriptionModal } from '@/components/subscription/SubscriptionModal';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -15,6 +18,7 @@ const navItems = [
     { name: 'Billing', href: '/billing', icon: ShoppingCart },
     { name: 'Sales History', href: '/sales', icon: FileText },
     { name: 'Customers', href: '/customers', icon: Users },
+    { name: 'Suppliers', href: '/suppliers', icon: Truck },
     { name: 'Restock List', href: '/restock', icon: ClipboardList },
     { name: 'Reports', href: '/reports', icon: FileText },
     { name: 'History', href: '/reports/history', icon: Calendar },
@@ -23,9 +27,16 @@ const navItems = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+    const { isPro } = useAuth();
 
     return (
         <>
+            <SubscriptionModal
+                isOpen={isSubscriptionModalOpen}
+                onClose={() => setIsSubscriptionModalOpen(false)}
+            />
+
             {/* Mobile overlay */}
             {isOpen && (
                 <div
@@ -74,6 +85,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             );
                         })}
                     </nav>
+
+                    {/* Upgrade Button - Hide if Pro */}
+                    {!isPro && (
+                        <div className="p-4">
+                            <button
+                                onClick={() => setIsSubscriptionModalOpen(true)}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-200"
+                            >
+                                <Zap className="h-4 w-4 fill-current" />
+                                Upgrade to Pro
+                            </button>
+                        </div>
+                    )}
 
                     {/* Footer */}
                     <div className="border-t border-neutral-200 p-4">

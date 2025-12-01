@@ -1,12 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { Eye, EyeOff, Store, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function Home() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const router = useRouter();
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!loading && user) {
@@ -14,7 +22,26 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
-  const handleSignIn = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setAuthLoading(true);
+
+    try {
+      if (isLogin) {
+        await signInWithEmail(email, password);
+      } else {
+        await signUpWithEmail(email, password, name);
+      }
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
     } catch (error) {
@@ -24,55 +51,147 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-        <div className="text-neutral-600">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4">
-      <main className="w-full max-w-4xl text-center">
-        {/* Hero Section */}
-        <div className="mb-12">
-          <h1 className="mb-4 text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl">
-            ShopCRM
-          </h1>
-          <p className="mx-auto max-w-2xl text-xl text-neutral-600">
-            Simple, fast CRM and inventory management for small shop owners
+    <div className="flex min-h-screen w-full bg-white">
+      {/* Left Side - Illustration */}
+      <div className="hidden w-1/2 flex-col items-center justify-center bg-blue-50 p-12 lg:flex">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
+            <Store className="h-10 w-10" />
+          </div>
+          <h1 className="mb-4 text-4xl font-bold text-neutral-900">ShopCRM</h1>
+          <p className="max-w-md text-lg text-neutral-600">
+            Simple, fast CRM and inventory management for small shop owners.
           </p>
         </div>
 
-        {/* Features */}
-        <div className="mb-12 grid gap-6 sm:grid-cols-3">
-          <div className="rounded-lg bg-white p-6 shadow-sm">
-            <div className="mb-2 text-3xl">📦</div>
-            <h3 className="mb-2 font-semibold text-neutral-900">Inventory</h3>
-            <p className="text-sm text-neutral-600">
-              Track stock levels and get low stock alerts
-            </p>
+        {/* Placeholder for Illustration since generation failed */}
+        <div className="relative flex h-80 w-full max-w-md items-center justify-center rounded-2xl bg-white p-8 shadow-sm border border-blue-100">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🏪</div>
+            <p className="text-neutral-400 font-medium">Manage your shop with ease</p>
           </div>
-          <div className="rounded-lg bg-white p-6 shadow-sm">
-            <div className="mb-2 text-3xl">💰</div>
-            <h3 className="mb-2 font-semibold text-neutral-900">Sales</h3>
-            <p className="text-sm text-neutral-600">
-              Record sales and generate invoices instantly
-            </p>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow-sm">
-            <div className="mb-2 text-3xl">📊</div>
-            <h3 className="mb-2 font-semibold text-neutral-900">Analytics</h3>
-            <p className="text-sm text-neutral-600">
-              View profit, trends, and best products
-            </p>
-          </div>
+          {/* Decorative elements */}
+          <div className="absolute -top-4 -right-4 h-12 w-12 rounded-full bg-blue-100 opacity-50"></div>
+          <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-blue-50"></div>
         </div>
+      </div>
 
-        {/* CTA */}
-        <div className="flex flex-col items-center gap-4">
+      {/* Right Side - Login Form */}
+      <div className="flex w-full flex-col justify-center px-4 sm:px-6 lg:w-1/2 lg:px-12 xl:px-24">
+        <div className="mx-auto w-full max-w-sm">
+          <div className="mb-8 lg:hidden">
+            <div className="flex items-center gap-2 text-blue-600 mb-2">
+              <Store className="h-6 w-6" />
+              <span className="font-bold text-xl">ShopCRM</span>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold tracking-tight text-neutral-900">
+              {isLogin ? 'Welcome back!' : 'Create an account'}
+            </h2>
+            <p className="mt-2 text-neutral-600">
+              {isLogin ? 'Sign in to your account.' : 'Start managing your shop today.'}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-neutral-700">Email Address</label>
+              <input
+                type="email"
+                required
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-neutral-700">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {isLogin && (
+                <div className="mt-1 flex justify-end">
+                  <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                    Forgot password?
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={authLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-70"
+            >
+              {authLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-neutral-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-neutral-500">or continue with</span>
+            </div>
+          </div>
+
           <button
-            onClick={handleSignIn}
-            className="flex items-center gap-3 rounded-lg bg-neutral-900 px-8 py-4 font-medium text-white shadow-md transition-all hover:bg-neutral-800 hover:shadow-lg"
+            onClick={handleGoogleSignIn}
+            type="button"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-200 focus:ring-offset-2"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -94,11 +213,18 @@ export default function Home() {
             </svg>
             Sign in with Google
           </button>
-          <p className="text-sm text-neutral-500">
-            Get started in seconds. No credit card required.
+
+          <p className="mt-8 text-center text-sm text-neutral-600">
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="font-semibold text-blue-600 hover:text-blue-500 hover:underline"
+            >
+              {isLogin ? 'Create one.' : 'Sign in.'}
+            </button>
           </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -7,11 +7,16 @@ import { ProductSearch } from '@/components/billing/ProductSearch';
 import { BillingCart } from '@/components/billing/BillingCart';
 import { ReceiptTemplate } from '@/components/billing/ReceiptTemplate';
 import { recordSale } from '@/lib/firestore/sales';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Printer, RefreshCw } from 'lucide-react';
 
 import { BillSuccessModal } from '@/components/billing/BillSuccessModal';
+import { CustomerSelectionModal } from '@/components/billing/CustomerSelectionModal';
+import { PaymentModal } from '@/components/billing/PaymentModal';
+import { useScanDetection } from '@/hooks/useScanDetection';
+import { playBeep } from '@/lib/sound';
+import { Wallet } from 'lucide-react';
 
 export default function BillingPage() {
     const { user, orgId, orgName } = useAuth();
@@ -25,7 +30,28 @@ export default function BillingPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [lastSale, setLastSale] = useState<any>(null);
+
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [gstNumber, setGstNumber] = useState('');
+
+    // Fetch Organization Details (GST)
+    useEffect(() => {
+        if (!orgId) return;
+        const fetchOrgDetails = async () => {
+            try {
+                const docRef = doc(db, 'organizations', orgId);
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    setGstNumber(snap.data().gstNumber || '');
+                }
+            } catch (error) {
+                console.error("Error fetching org details:", error);
+            }
+        };
+        fetchOrgDetails();
+    }, [orgId]);
 
     // Fetch customers for dropdown
     useEffect(() => {
@@ -75,6 +101,41 @@ export default function BillingPage() {
         });
     };
 
+    // Placeholder for findProductByBarcode - assuming it's a new utility function
+    // This function would typically query your products collection by barcode.
+    const findProductByBarcode = async (orgId: string, barcode: string): Promise<Product | null> => {
+        try {
+            const q = query(collection(db, 'products'), where('orgId', '==', orgId), where('barcode', '==', barcode));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return { id: doc.id, ...doc.data() } as Product;
+            }
+            return null;
+        } catch (error) {
+            console.error("Error finding product by barcode:", error);
+            return null;
+        }
+    };
+
+    const handleScan = async (barcode: string) => {
+        if (!orgId) return;
+        try {
+            const product = await findProductByBarcode(orgId, barcode);
+            if (product) {
+                addToCart(product);
+                playBeep('success');
+            } else {
+                playBeep('error');
+                // alert(`Product with barcode ${barcode} not found.`);
+                // For remote scanner, maybe just console log or show a toast to avoid blocking alerts
+                console.log(`Product with barcode ${barcode} not found.`);
+            }
+        } catch (error) {
+            console.error("Scan error:", error);
+        }
+    };
+
     const updateQuantity = (productId: string, newQty: number) => {
         if (newQty < 1) return;
 
@@ -95,8 +156,30 @@ export default function BillingPage() {
         setCart(prev => prev.filter(item => item.productId !== productId));
     };
 
+    // Refresh customers after payment
+    const refreshCustomers = async () => {
+        if (!orgId) return;
+        const q = query(collection(db, 'customers'), where('orgId', '==', orgId), orderBy('name'));
+        const snapshot = await getDocs(q);
+        const updatedCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+        setCustomers(updatedCustomers);
+
+        // Update selected customer if exists
+        if (selectedCustomer) {
+            const updated = updatedCustomers.find(c => c.id === selectedCustomer.id);
+            if (updated) setSelectedCustomer(updated);
+        }
+    };
+
     const handleCheckout = async (paymentMode: 'cash' | 'card' | 'upi' | 'credit') => {
         if (!orgId || cart.length === 0) return;
+
+        // Validate Credit Sale
+        if (paymentMode === 'credit' && !selectedCustomer) {
+            setShowCustomerModal(true);
+            return;
+        }
+
         setIsProcessing(true);
 
         try {
@@ -110,9 +193,11 @@ export default function BillingPage() {
                 tax: 0,
                 grandTotal: subTotal,
                 totalCost,
+                totalPaid: paymentMode === 'credit' ? 0 : subTotal, // Track paid amount
                 paymentMode,
-                customerId: selectedCustomer?.id,
-                customerName: selectedCustomer?.name
+                customerId: selectedCustomer?.id || null,
+                customerName: selectedCustomer?.name || null,
+                customerPhone: selectedCustomer?.phone || null
             };
 
             const saleId = await recordSale(orgId, saleData);
@@ -134,6 +219,18 @@ export default function BillingPage() {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    const handleCustomerSelect = (customer: Customer) => {
+        setSelectedCustomer(customer);
+        setShowCustomerModal(false);
+        // Optional: Auto-trigger credit checkout?
+        // For now, let's just select the customer so the user can click Credit again.
+        // Actually, better UX: if modal was opened via Credit click, maybe we should proceed?
+        // But to keep it simple and safe: Select customer -> User clicks Credit again.
+        // Wait, user said "popup vanishing... so not working".
+        // Let's make it seamless: Select -> Auto Checkout Credit?
+        // Let's just select for now to avoid accidental sales.
     };
 
     const handlePrint = () => {
@@ -189,8 +286,6 @@ export default function BillingPage() {
         }
     };
 
-    // ... (rest of the component)
-
     const handleCloseModal = () => {
         setShowSuccessModal(false);
         setCart([]);
@@ -240,16 +335,35 @@ export default function BillingPage() {
                     {/* Customer Selection */}
                     <div className="mb-6">
                         <label className="block text-sm font-medium text-neutral-700 mb-2">Customer (Optional)</label>
-                        <select
-                            className="w-full p-2 border border-neutral-300 rounded-lg text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
-                            onChange={(e) => setSelectedCustomer(customers.find(c => c.id === e.target.value) || null)}
-                            value={selectedCustomer?.id || ''}
-                        >
-                            <option value="">Walk-in Customer</option>
-                            {customers.map(c => (
-                                <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
-                            ))}
-                        </select>
+                        <div className="flex gap-2">
+                            <select
+                                className="w-full p-2 border border-neutral-300 rounded-lg text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+                                onChange={(e) => setSelectedCustomer(customers.find(c => c.id === e.target.value) || null)}
+                                value={selectedCustomer?.id || ''}
+                            >
+                                <option value="">Walk-in Customer</option>
+                                {customers.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+                                ))}
+                            </select>
+                            {selectedCustomer && (
+                                <button
+                                    onClick={() => setShowPaymentModal(true)}
+                                    className="flex items-center justify-center p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-200"
+                                    title="Receive Payment"
+                                >
+                                    <Wallet className="h-5 w-5" />
+                                </button>
+                            )}
+                        </div>
+                        {selectedCustomer && (
+                            <div className="mt-2 text-sm">
+                                <span className="text-neutral-500">Balance: </span>
+                                <span className={`font-semibold ${selectedCustomer.totalCredit > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    ₹{selectedCustomer.totalCredit?.toFixed(2) || '0.00'}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Totals */}
@@ -293,9 +407,8 @@ export default function BillingPage() {
                         </button>
                         <button
                             onClick={() => handleCheckout('credit')}
-                            disabled={cart.length === 0 || isProcessing || !selectedCustomer}
+                            disabled={cart.length === 0 || isProcessing}
                             className="bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50"
-                            title={!selectedCustomer ? "Select a customer for credit" : ""}
                         >
                             Credit
                         </button>
@@ -312,10 +425,49 @@ export default function BillingPage() {
                 />
             )}
 
+            {/* Customer Selection Modal */}
+            {showCustomerModal && (
+                <CustomerSelectionModal
+                    customers={customers}
+                    onSelect={handleCustomerSelect}
+                    onClose={() => setShowCustomerModal(false)}
+                    orgId={orgId || ''}
+                />
+            )}
+
+            {/* Payment Modal */}
+            {showPaymentModal && selectedCustomer && (
+                <PaymentModal
+                    customer={selectedCustomer}
+                    onClose={() => setShowPaymentModal(false)}
+                    onSuccess={() => {
+                        refreshCustomers();
+                        // alert("Payment recorded successfully!"); // Optional feedback
+                    }}
+                />
+            )}
+
             {/* Hidden Receipt for Printing - ReceiptTemplate handles its own display logic */}
             <div>
                 {lastSale && (
-                    <ReceiptTemplate sale={lastSale} orgName={orgName || 'My Shop'} />
+                    <ReceiptTemplate
+                        sale={lastSale}
+                        orgName={orgName || 'My Shop'}
+                        gstNumber={gstNumber}
+                        customerBalance={
+                            // If we have a selected customer, calculate their NEW balance.
+                            // The 'selectedCustomer' state might not be updated yet if we didn't refetch.
+                            // But for the receipt, we can estimate:
+                            // If credit sale: Old Balance + Grand Total
+                            // If cash sale: Old Balance (unchanged)
+                            // Wait, recordSale updates the DB.
+                            // Ideally we should pass the balance from the response or calculate it.
+                            // Let's use the selectedCustomer.totalCredit + (credit sale ? amount : 0)
+                            selectedCustomer ? (
+                                (selectedCustomer.totalCredit || 0) + (lastSale.paymentMode === 'credit' ? lastSale.grandTotal : 0)
+                            ) : undefined
+                        }
+                    />
                 )}
             </div>
         </div>

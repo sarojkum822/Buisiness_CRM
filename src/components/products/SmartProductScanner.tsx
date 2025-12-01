@@ -8,6 +8,8 @@ import BarcodeScanner from '@/components/stock/BarcodeScanner';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { findProductByBarcode } from '@/lib/firestore/products';
 import { QueueItem } from '@/components/products/QueueItem';
+import { playBeep } from '@/lib/sound';
+import { useScanDetection } from '@/hooks/useScanDetection';
 
 const CATEGORIES = ['Electronics', 'Groceries', 'Clothing', 'Hardware', 'Other'];
 
@@ -41,6 +43,7 @@ export function SmartProductScanner({ onSaveAll, onClose }: SmartProductScannerP
     const [currentItem, setCurrentItem] = useState<QueuedItemData | null>(null);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [manualBarcode, setManualBarcode] = useState('');
 
     // Track last scanned barcode for debouncing
     const lastScannedRef = useRef('');
@@ -90,6 +93,7 @@ export function SmartProductScanner({ onSaveAll, onClose }: SmartProductScannerP
                     },
                 };
                 setCurrentItem(queueItem);
+                playBeep('success');
                 console.log('📦 Loaded existing product:', existingProduct.name);
             } else {
                 // New product - create with auto-generated values
@@ -109,15 +113,33 @@ export function SmartProductScanner({ onSaveAll, onClose }: SmartProductScannerP
                     },
                 };
                 setCurrentItem(queueItem);
+                playBeep('success');
                 console.log('🆕 Created new product template:', queueItem.data.name);
             }
         } catch (error) {
             console.error('Error loading product:', error);
+            playBeep('error');
             alert('Failed to load product');
         } finally {
             setLoading(false);
         }
     };
+
+    // ...
+
+    const handleManualSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (manualBarcode.trim()) {
+            handleBarcodeScan(manualBarcode.trim());
+            setManualBarcode('');
+        }
+    };
+
+    // Enable USB/Keyboard Scanner Detection
+    useScanDetection({
+        onScan: handleBarcodeScan,
+        minLength: 3
+    });
 
     // Add current item to queue
     const handleAddToQueue = () => {
@@ -220,6 +242,19 @@ export function SmartProductScanner({ onSaveAll, onClose }: SmartProductScannerP
                         </span>
                     </label>
                 </div>
+
+                {/* Manual Barcode Entry */}
+                <form onSubmit={handleManualSubmit} className="flex gap-2">
+                    <Input
+                        placeholder="Type barcode manually..."
+                        value={manualBarcode}
+                        onChange={(e) => setManualBarcode(e.target.value)}
+                        className="flex-1"
+                    />
+                    <Button type="submit" disabled={!manualBarcode.trim() || loading}>
+                        Add
+                    </Button>
+                </form>
 
                 {/* Camera Scanner */}
                 {showScanner && (

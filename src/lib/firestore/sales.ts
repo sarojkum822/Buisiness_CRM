@@ -168,6 +168,7 @@ export async function recordSale(
             ...saleData,
             customerId: saleData.customerId || null,
             customerName: saleData.customerName || null,
+            customerPhone: saleData.customerPhone || null,
             orgId,
             invoiceNumber,
             createdAt: serverTimestamp(),

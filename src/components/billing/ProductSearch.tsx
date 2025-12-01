@@ -5,8 +5,8 @@ import { Search, ScanBarcode, Camera } from 'lucide-react';
 import { Product } from '@/types';
 import { useProducts } from '@/components/providers/ProductProvider';
 import BarcodeScanner from '@/components/stock/BarcodeScanner';
-
-// ...
+import { Toast, ToastType } from '@/components/ui/Toast';
+import { playBeep } from '@/lib/sound';
 
 interface ProductSearchProps {
     onProductSelect: (product: Product) => void;
@@ -20,6 +20,7 @@ export function ProductSearch({ onProductSelect, orgId }: ProductSearchProps) {
     const [results, setResults] = useState<Product[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Auto-focus input on mount and after selection
@@ -57,11 +58,17 @@ export function ProductSearch({ onProductSelect, orgId }: ProductSearchProps) {
 
         if (product) {
             onProductSelect(product);
+            playBeep('success');
             setQuery(''); // Clear input for next scan
             setIsOpen(false);
             inputRef.current?.focus();
         } else {
-            alert('Product not found');
+            playBeep('error');
+            setToast({
+                message: `Product with barcode "${barcode}" not found`,
+                type: 'error'
+            });
+            setQuery(''); // Clear invalid barcode
         }
     };
 
@@ -99,6 +106,13 @@ export function ProductSearch({ onProductSelect, orgId }: ProductSearchProps) {
 
     return (
         <div className="relative w-full">
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
             <div className="flex gap-2">
                 <div className="relative flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
