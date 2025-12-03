@@ -229,6 +229,12 @@ export default function Home() {
             Continue as Guest
           </button>
 
+          <div className="mt-12 text-center">
+            <p className="text-xs text-neutral-400">
+              Created by Saroj Kumar (Information and Technology, BE)
+            </p>
+          </div>
+
           <p className="mt-8 text-center text-sm text-neutral-600">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <button
