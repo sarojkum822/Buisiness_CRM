@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { Eye, EyeOff, Store, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function Home() {
-  const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, loginAsGuest } = useAuth();
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -212,6 +212,21 @@ export default function Home() {
               />
             </svg>
             Sign in with Google
+          </button>
+
+          <button
+            onClick={async () => {
+              try {
+                await loginAsGuest();
+              } catch (error) {
+                console.error('Guest login failed:', error);
+              }
+            }}
+            type="button"
+            className="mt-3 flex w-full items-center justify-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-200 focus:ring-offset-2"
+          >
+            <Store className="h-5 w-5" />
+            Continue as Guest
           </button>
 
           <p className="mt-8 text-center text-sm text-neutral-600">

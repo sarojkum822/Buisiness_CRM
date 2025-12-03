@@ -11,6 +11,7 @@ import {
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
     updateProfile,
+    signInAnonymously,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -26,6 +27,7 @@ interface AuthContextType {
     signInWithGoogle: () => Promise<void>;
     signInWithEmail: (email: string, pass: string) => Promise<void>;
     signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+    loginAsGuest: () => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -39,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
     signInWithGoogle: async () => { },
     signInWithEmail: async () => { },
     signUpWithEmail: async () => { },
+    loginAsGuest: async () => { },
     logout: async () => { },
 });
 
@@ -74,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // New user - create organization
                 const newOrgRef = doc(collection(db, 'organizations'));
                 const orgData: Omit<Organization, 'id'> = {
-                    name: `${user.displayName || user.email}'s Shop`,
+                    name: user.isAnonymous ? 'Guest Shop' : `${user.displayName || user.email}'s Shop`,
                     ownerId: user.uid,
                     createdAt: new Date(),
                 };
@@ -88,8 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const userMappingData: UserMapping = {
                     userId: user.uid,
                     orgId: newOrgRef.id,
-                    email: user.email || '',
-                    displayName: user.displayName || '',
+                    email: user.email || `guest_${user.uid.slice(0, 6)}@example.com`,
+                    displayName: user.displayName || 'Guest User',
                 };
 
                 await setDoc(userMappingRef, userMappingData);
@@ -98,8 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const orgUserRef = doc(db, 'organizations', newOrgRef.id, 'users', user.uid);
                 await setDoc(orgUserRef, {
                     userId: user.uid,
-                    name: user.displayName || '',
-                    email: user.email || '',
+                    name: user.displayName || 'Guest User',
+                    email: user.email || `guest_${user.uid.slice(0, 6)}@example.com`,
                     role: 'owner',
                     isActive: true,
                 });
@@ -161,6 +164,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const loginAsGuest = async () => {
+        try {
+            await signInAnonymously(auth);
+        } catch (error) {
+            console.error('Error signing in as guest:', error);
+            throw error;
+        }
+    };
+
     const logout = async () => {
         try {
             await firebaseSignOut(auth);
@@ -184,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        loginAsGuest,
         logout,
     };
 
