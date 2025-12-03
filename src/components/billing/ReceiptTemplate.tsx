@@ -154,7 +154,7 @@ export function ReceiptTemplate({ sale, orgName, gstNumber, customerBalance }: R
                     For any queries, please contact us at support@myshop.com or call +91 98765 43210.
                 </p>
                 <p className="text-xs text-neutral-400 mt-4">
-                    Generated via ShopCRM
+                    Generated via StoreMate
                 </p>
             </div>
         </div>

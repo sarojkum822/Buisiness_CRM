@@ -53,7 +53,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <div className="flex h-full flex-col">
                     {/* Logo */}
                     <div className="flex h-16 items-center justify-between border-b border-neutral-200 px-6">
-                        <h1 className="text-xl font-bold text-neutral-900">ShopCRM</h1>
+                        <h1 className="text-xl font-bold text-neutral-900">StoreMate</h1>
                         <button
                             onClick={onClose}
                             className="text-neutral-500 hover:text-neutral-700 md:hidden"
@@ -102,7 +102,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     {/* Footer */}
                     <div className="border-t border-neutral-200 p-4">
                         <p className="text-xs text-neutral-500">
-                            © 2024 ShopCRM
+                            © 2024 StoreMate
                         </p>
                     </div>
                 </div>

@@ -25,7 +25,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 <div className="p-6 md:p-10">
                     {/* Header */}
                     <div className="mb-10 text-center">
-                        <h2 className="mb-3 text-3xl font-bold text-neutral-900">Upgrade to ShopCRM Pro</h2>
+                        <h2 className="mb-3 text-3xl font-bold text-neutral-900">Upgrade to StoreMate Pro</h2>
                         <p className="text-lg text-neutral-600">Unlock powerful features to grow your business and manage it effortlessly.</p>
                     </div>
 

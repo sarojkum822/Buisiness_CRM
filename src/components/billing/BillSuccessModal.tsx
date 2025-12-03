@@ -29,7 +29,7 @@ export function BillSuccessModal({ sale, onPrint, onClose }: BillSuccessModalPro
             .join('\n');
 
         const message = `*Invoice #${sale.invoiceNumber}*\n` +
-            `From: ${orgName || 'ShopCRM'}\n\n` +
+            `From: ${orgName || 'StoreMate'}\n\n` +
             `*Items:*\n${itemsList}\n\n` +
             `*Total Amount: ₹${sale.grandTotal.toFixed(2)}*\n\n` +
             `Thank you for shopping with us!`;

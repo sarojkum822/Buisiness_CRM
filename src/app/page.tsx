@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Eye, EyeOff, Store, ArrowRight, Loader2 } from 'lucide-react';
+import { LoginIllustration } from '@/components/auth/LoginIllustration';
 
 export default function Home() {
   const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, loginAsGuest } = useAuth();
@@ -65,21 +66,15 @@ export default function Home() {
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
             <Store className="h-10 w-10" />
           </div>
-          <h1 className="mb-4 text-4xl font-bold text-neutral-900">ShopCRM</h1>
+          <h1 className="mb-4 text-4xl font-bold text-neutral-900">StoreMate</h1>
           <p className="max-w-md text-lg text-neutral-600">
             Simple, fast CRM and inventory management for small shop owners.
           </p>
         </div>
 
-        {/* Placeholder for Illustration since generation failed */}
-        <div className="relative flex h-80 w-full max-w-md items-center justify-center rounded-2xl bg-white p-8 shadow-sm border border-blue-100">
-          <div className="text-center">
-            <div className="text-6xl mb-4">🏪</div>
-            <p className="text-neutral-400 font-medium">Manage your shop with ease</p>
-          </div>
-          {/* Decorative elements */}
-          <div className="absolute -top-4 -right-4 h-12 w-12 rounded-full bg-blue-100 opacity-50"></div>
-          <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-blue-50"></div>
+        {/* Animated Illustration */}
+        <div className="relative flex h-full w-full max-w-lg items-center justify-center p-8">
+          <LoginIllustration />
         </div>
       </div>
 
@@ -89,7 +84,7 @@ export default function Home() {
           <div className="mb-8 lg:hidden">
             <div className="flex items-center gap-2 text-blue-600 mb-2">
               <Store className="h-6 w-6" />
-              <span className="font-bold text-xl">ShopCRM</span>
+              <span className="font-bold text-xl">StoreMate</span>
             </div>
           </div>
 
@@ -231,7 +226,7 @@ export default function Home() {
 
           <div className="mt-12 text-center">
             <p className="text-xs text-neutral-400">
-              Created by Saroj Kumar (Information and Technology, BE)
+              Created by Saroj Kumar
             </p>
           </div>
 
