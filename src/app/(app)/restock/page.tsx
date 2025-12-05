@@ -7,40 +7,44 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { Product } from '@/types';
 
 export default function RestockPage() {
-    const { orgId } = useAuth();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [products, setProducts] = useState<Product[]>([]);
     const [quantities, setQuantities] = useState<Record<string, number>>({});
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        if (orgId) {
+        if (user?.email) {
             fetchLowStockProducts();
         }
-    }, [orgId]);
+    }, [user?.email]); // Add user.email to dependency array
 
     const fetchLowStockProducts = async () => {
         try {
             const productsRef = collection(db, 'products');
-            const q = query(productsRef, where('orgId', '==', orgId), orderBy('name', 'asc'));
+            // Client-side sorting: Remove orderBy from query
+            const q = query(productsRef, where('orgId', '==', user?.email));
             const snapshot = await getDocs(q);
 
             const lowStockItems: Product[] = [];
-            const initialQuantities: Record<string, number> = {};
+            const quantitiesMap: Record<string, number> = {};
 
-            snapshot.forEach((doc) => {
-                const data = doc.data() as Product;
-                const threshold = data.lowStockThreshold || 5;
-                if (data.currentStock <= threshold) {
-                    lowStockItems.push({ id: doc.id, ...data });
-                    // Calculate initial suggested quantity
-                    const deficit = threshold - data.currentStock;
-                    initialQuantities[doc.id] = deficit + 10;
+            snapshot.docs.forEach(doc => {
+                const product = { id: doc.id, ...doc.data() } as Product;
+                // Use lowStockThreshold from type definition
+                const threshold = product.lowStockThreshold || 5;
+                if (product.currentStock <= threshold) {
+                    lowStockItems.push(product);
+                    // Calculate initial suggested quantity to reach threshold + 10
+                    quantitiesMap[product.id!] = (threshold - product.currentStock) + 10;
                 }
             });
 
+            // Sort by name client-side
+            lowStockItems.sort((a, b) => a.name.localeCompare(b.name));
+
             setProducts(lowStockItems);
-            setQuantities(initialQuantities);
+            setQuantities(quantitiesMap);
         } catch (error) {
             console.error('Error fetching restock list:', error);
         } finally {

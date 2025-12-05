@@ -14,7 +14,7 @@ import { SalesTable } from '@/components/sales/SalesTable';
 import { SaleDetailsModal } from '@/components/sales/SaleDetailsModal';
 
 export default function SalesPage() {
-    const { orgId } = useAuth();
+    const { user } = useAuth();
     const [sales, setSales] = useState<Sale[]>([]);
     const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
@@ -28,10 +28,11 @@ export default function SalesPage() {
 
     // Real-time sales listener
     useEffect(() => {
-        if (!orgId) return;
+        if (!user?.email) return; // Changed from orgId to user?.email
 
         const salesRef = collection(db, 'sales');
-        const q = query(salesRef, where('orgId', '==', orgId), orderBy('createdAt', 'desc'));
+        // Client-side sorting: Remove orderBy
+        const q = query(salesRef, where('orgId', '==', user.email)); // Changed from orgId to user.email and removed orderBy
 
         const unsubscribe = onSnapshot(q,
             (snapshot) => {
@@ -39,9 +40,13 @@ export default function SalesPage() {
                     id: doc.id,
                     ...doc.data(),
                     createdAt: doc.data().createdAt?.toDate() || new Date(),
-                })) as Sale[];
+                } as Sale)); // Added 'as Sale' type assertion
+
+                // Sort by createdAt desc client-side
+                salesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
                 setSales(salesData);
+                setFilteredSales(salesData); // Added this line to initialize filteredSales
                 setLoading(false);
             },
             (error) => {
@@ -52,7 +57,7 @@ export default function SalesPage() {
         );
 
         return () => unsubscribe();
-    }, [orgId]);
+    }, [user?.email]); // Changed dependency array from orgId to user?.email
 
     // Filter sales based on date range
     useEffect(() => {
@@ -74,8 +79,8 @@ export default function SalesPage() {
     }, [sales, startDate, endDate]);
 
     const handleCreateSale = async (saleData: any) => {
-        if (!orgId) return;
-        await recordSale(orgId, saleData);
+        if (!user?.email) return;
+        await recordSale(user.email, saleData);
         setShowNewSaleModal(false);
     };
 

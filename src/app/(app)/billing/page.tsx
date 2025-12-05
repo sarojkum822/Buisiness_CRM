@@ -55,14 +55,20 @@ export default function BillingPage() {
 
     // Fetch customers for dropdown
     useEffect(() => {
-        if (!orgId) return;
+        if (!user?.email) return;
         const fetchCustomers = async () => {
-            const q = query(collection(db, 'customers'), where('orgId', '==', orgId), orderBy('name'));
+            // Client-side sorting: Remove orderBy
+            const q = query(collection(db, 'customers'), where('orgId', '==', user.email));
             const snapshot = await getDocs(q);
-            setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
+            const customersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+
+            // Sort by name client-side
+            customersData.sort((a, b) => a.name.localeCompare(b.name));
+
+            setCustomers(customersData);
         };
         fetchCustomers();
-    }, [orgId]);
+    }, [user?.email]);
 
     const addToCart = (product: Product) => {
         setCart(prev => {
@@ -119,9 +125,9 @@ export default function BillingPage() {
     };
 
     const handleScan = async (barcode: string) => {
-        if (!orgId) return;
+        if (!user?.email) return;
         try {
-            const product = await findProductByBarcode(orgId, barcode);
+            const product = await findProductByBarcode(user.email, barcode);
             if (product) {
                 addToCart(product);
                 playBeep('success');
@@ -158,10 +164,15 @@ export default function BillingPage() {
 
     // Refresh customers after payment
     const refreshCustomers = async () => {
-        if (!orgId) return;
-        const q = query(collection(db, 'customers'), where('orgId', '==', orgId), orderBy('name'));
+        if (!user?.email) return;
+        // Client-side sorting: Remove orderBy
+        const q = query(collection(db, 'customers'), where('orgId', '==', user.email));
         const snapshot = await getDocs(q);
         const updatedCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+
+        // Sort by name client-side
+        updatedCustomers.sort((a, b) => a.name.localeCompare(b.name));
+
         setCustomers(updatedCustomers);
 
         // Update selected customer if exists
@@ -172,7 +183,7 @@ export default function BillingPage() {
     };
 
     const handleCheckout = async (paymentMode: 'cash' | 'card' | 'upi' | 'credit') => {
-        if (!orgId || cart.length === 0) return;
+        if (!user?.email || cart.length === 0) return;
 
         // Validate Credit Sale
         if (paymentMode === 'credit' && !selectedCustomer) {
@@ -200,7 +211,7 @@ export default function BillingPage() {
                 customerPhone: selectedCustomer?.phone || null
             };
 
-            const saleId = await recordSale(orgId, saleData);
+            const saleId = await recordSale(user.email, saleData);
 
             // Prepare receipt data
             setLastSale({
@@ -310,7 +321,7 @@ export default function BillingPage() {
                             Reset Billing
                         </button>
                     </div>
-                    <ProductSearch onProductSelect={addToCart} orgId={orgId || ''} />
+                    <ProductSearch onProductSelect={addToCart} orgId={user?.email || ''} />
                 </div>
 
                 {/* Quick Actions / Common Products could go here */}
@@ -431,7 +442,7 @@ export default function BillingPage() {
                     customers={customers}
                     onSelect={handleCustomerSelect}
                     onClose={() => setShowCustomerModal(false)}
-                    orgId={orgId || ''}
+                    orgId={user?.email || ''}
                 />
             )}
 

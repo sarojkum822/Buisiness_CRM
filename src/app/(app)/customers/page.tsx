@@ -13,7 +13,7 @@ import { CustomerDetailsModal } from '@/components/customers/CustomerDetailsModa
 import { Plus, Search } from 'lucide-react';
 
 export default function CustomersPage() {
-    const { orgId } = useAuth();
+    const { user } = useAuth();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
@@ -27,10 +27,12 @@ export default function CustomersPage() {
 
     // Fetch customers
     const fetchCustomers = async () => {
-        if (!orgId) return;
+        if (!user?.email) return;
         setLoading(true);
         try {
-            const data = await getCustomers(orgId);
+            const data = await getCustomers(user.email);
+            // Client-side sorting
+            data.sort((a, b) => a.name.localeCompare(b.name));
             setCustomers(data);
             setFilteredCustomers(data);
         } catch (error) {
@@ -42,7 +44,7 @@ export default function CustomersPage() {
 
     useEffect(() => {
         fetchCustomers();
-    }, [orgId]);
+    }, [user?.email]);
 
     // Filter customers
     useEffect(() => {
@@ -60,8 +62,8 @@ export default function CustomersPage() {
     }, [searchTerm, customers]);
 
     const handleCreateCustomer = async (data: Partial<Customer>) => {
-        if (!orgId) return;
-        await createCustomer(orgId, data);
+        if (!user?.email) return;
+        await createCustomer(user.email, data);
         setShowAddModal(false);
         fetchCustomers();
     };

@@ -22,7 +22,7 @@ import { Toast, ToastType } from '@/components/ui/Toast';
 const CATEGORIES = ['All', 'Electronics', 'Groceries', 'Clothing', 'Hardware', 'Other'];
 
 export default function ProductsPage() {
-    const { orgId } = useAuth();
+    const { user } = useAuth();
     const searchParams = useSearchParams();
     const [products, setProducts] = useState<Product[]>([]);
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -48,10 +48,11 @@ export default function ProductsPage() {
 
     // Real-time products listener
     useEffect(() => {
-        if (!orgId) return;
+        if (!user?.email) return; // Changed from orgId to user?.email
 
         const productsRef = collection(db, 'products');
-        const q = query(productsRef, where('orgId', '==', orgId), orderBy('name', 'asc'));
+        // Client-side sorting: Removed orderBy from query
+        const q = query(productsRef, where('orgId', '==', user.email)); // Changed from orgId to user.email
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const productsData = snapshot.docs.map((doc) => ({
@@ -61,12 +62,16 @@ export default function ProductsPage() {
                 updatedAt: doc.data().updatedAt?.toDate() || new Date(),
             })) as Product[];
 
+            // Sort by name client-side
+            productsData.sort((a, b) => a.name.localeCompare(b.name));
+
             setProducts(productsData);
+            setFilteredProducts(productsData); // Added this line to initialize filteredProducts
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [orgId]);
+    }, [user?.email]);
 
     // Check for barcode URL parameter and auto-open add modal
     useEffect(() => {
@@ -109,22 +114,22 @@ export default function ProductsPage() {
     // ... existing useEffects
 
     const handleProductSave = async (data: any, mode: 'create' | 'update', productId?: string) => {
-        if (!orgId) {
-            showToast('Error: Organization ID not found', 'error');
+        if (!user?.email) {
+            showToast('Error: User Email not found', 'error');
             return;
         }
 
         try {
             if (mode === 'create') {
                 console.log('Creating product:', data);
-                const newProductId = await createProduct(orgId, data);
+                const newProductId = await createProduct(user.email, data);
                 console.log('Product created successfully:', newProductId);
                 showToast(`Product "${data.name}" created successfully!`, 'success');
                 setShowAddModal(false);
                 setInitialBarcode('');
             } else if (mode === 'update' && productId) {
                 console.log('Updating product:', productId, data);
-                await updateProduct(orgId, productId, data);
+                await updateProduct(user.email, productId, data);
                 console.log('Product updated successfully');
                 showToast(`Product "${data.name}" updated successfully!`, 'success');
                 setShowEditModal(false);
@@ -137,14 +142,14 @@ export default function ProductsPage() {
     };
 
     const handleAdjustStock = async (adjustmentData: any) => {
-        if (!orgId || !selectedProduct) {
-            showToast('Error: Missing organization ID or product', 'error');
+        if (!user?.email || !selectedProduct) {
+            showToast('Error: Missing user email or product', 'error');
             return;
         }
 
         try {
             console.log('Adjusting stock for:', selectedProduct.name, adjustmentData);
-            await adjustStock(orgId, selectedProduct.id!, adjustmentData);
+            await adjustStock(user.email, selectedProduct.id!, adjustmentData);
             console.log('Stock adjusted successfully');
             showToast(`Stock adjusted successfully for "${selectedProduct.name}"!`, 'success');
             setShowStockModal(false);
@@ -156,14 +161,14 @@ export default function ProductsPage() {
     };
 
     const handleDeleteProduct = async (product: Product) => {
-        if (!orgId || !product.id) {
-            showToast('Error: Missing organization ID or product ID', 'error');
+        if (!user?.email || !product.id) {
+            showToast('Error: Missing user email or product ID', 'error');
             return;
         }
 
         try {
             console.log('Deleting product:', product.name);
-            await deleteProduct(orgId, product.id);
+            await deleteProduct(user.email, product.id);
             console.log('Product deleted successfully');
             showToast(`Product "${product.name}" deleted successfully!`, 'success');
             setShowDeleteModal(false);
@@ -175,8 +180,8 @@ export default function ProductsPage() {
     };
 
     const handleBatchSave = async (items: any[]) => {
-        if (!orgId) {
-            showToast('Error: Organization ID not found', 'error');
+        if (!user?.email) {
+            showToast('Error: User Email not found', 'error');
             return;
         }
 
@@ -189,11 +194,11 @@ export default function ProductsPage() {
                 try {
                     if (item.type === 'new') {
                         console.log('Creating product:', item.data.name);
-                        await createProduct(orgId, item.data);
+                        await createProduct(user.email, item.data);
                         successCount++;
                     } else if (item.type === 'update' && item.productId) {
                         console.log('Updating product:', item.data.name);
-                        await updateProduct(orgId, item.productId, item.data);
+                        await updateProduct(user.email, item.productId, item.data);
                         successCount++;
                     }
                 } catch (error) {

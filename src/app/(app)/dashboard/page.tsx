@@ -16,7 +16,7 @@ import { SalesTrendChart } from '@/components/dashboard/SalesTrendChart';
 import { DollarSign, ShoppingBag, TrendingUp, Users } from 'lucide-react';
 
 export default function DashboardPage() {
-    const { orgId } = useAuth();
+    const { user } = useAuth();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [sales, setSales] = useState<Sale[]>([]);
@@ -30,17 +30,17 @@ export default function DashboardPage() {
 
     // Real-time customers listener
     useEffect(() => {
-        if (!orgId) return;
-        const q = query(collection(db, 'customers'), where('orgId', '==', orgId));
+        if (!user?.email) return;
+        const q = query(collection(db, 'customers'), where('orgId', '==', user.email));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
         });
         return () => unsubscribe();
-    }, [orgId]);
+    }, [user?.email]);
 
     // Fetch initial data
     useEffect(() => {
-        if (!orgId) return;
+        if (!user?.email) return;
 
         const fetchData = async () => {
             setLoading(true);
@@ -50,31 +50,36 @@ export default function DashboardPage() {
                 const todayQuery = query(
                     collection(db, 'dailyStats'),
                     where('date', '==', todayStr),
-                    where('orgId', '==', orgId)
+                    where('orgId', '==', user.email)
                 );
                 const todaySnapshot = await getDocs(todayQuery);
                 setTodayStats(todaySnapshot.empty ? null : todaySnapshot.docs[0].data() as DailyStats);
 
                 // Fetch products
-                const productsSnapshot = await getDocs(query(collection(db, 'products'), where('orgId', '==', orgId)));
+                const productsSnapshot = await getDocs(query(collection(db, 'products'), where('orgId', '==', user.email)));
                 setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
 
                 // Fetch recent sales
-                const salesQuery = query(
+                // Client-side sorting: Remove orderBy
+                const recentSalesQuery = query(
                     collection(db, 'sales'),
-                    where('orgId', '==', orgId),
-                    orderBy('createdAt', 'desc'),
-                    limit(10)
+                    where('orgId', '==', user.email),
+                    limit(20) // Increased limit to allow for client-side sorting
                 );
-                const salesSnapshot = await getDocs(salesQuery);
-                setSales(salesSnapshot.docs.map(doc => ({
+                const recentSalesSnapshot = await getDocs(recentSalesQuery);
+                const recentSalesData = recentSalesSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
                     createdAt: doc.data().createdAt?.toDate() || new Date(),
-                } as Sale)));
+                } as Sale));
+
+                // Sort by createdAt desc client-side
+                recentSalesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+                setSales(recentSalesData.slice(0, 10)); // Take top 10 after sort
 
                 // Fetch all sales for monthly stats
-                const allSalesQuery = query(collection(db, 'sales'), where('orgId', '==', orgId));
+                const allSalesQuery = query(collection(db, 'sales'), where('orgId', '==', user.email));
                 const allSalesSnapshot = await getDocs(allSalesQuery);
                 setAllSales(allSalesSnapshot.docs.map(doc => ({
                     id: doc.id,
@@ -90,7 +95,7 @@ export default function DashboardPage() {
         };
 
         fetchData();
-    }, [orgId]);
+    }, [user?.email]);
 
     // Calculate monthly stats
     useEffect(() => {
@@ -107,28 +112,27 @@ export default function DashboardPage() {
 
     // Real-time daily stats for chart
     useEffect(() => {
-        if (!orgId) return;
+        if (!user?.email) return;
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
+        // Client-side sorting: Remove orderBy
         const q = query(
             collection(db, 'dailyStats'),
-            where('orgId', '==', orgId),
-            where('date', '>=', dateStr),
-            orderBy('date', 'asc')
+            where('orgId', '==', user.email),
+            where('date', '>=', dateStr)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            setDailyStats(snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate() || new Date(),
-            } as DailyStats)));
+            const stats = snapshot.docs.map(doc => doc.data() as DailyStats);
+            // Sort by date asc client-side
+            stats.sort((a, b) => a.date.localeCompare(b.date));
+            setDailyStats(stats);
         });
 
         return () => unsubscribe();
-    }, [orgId]);
+    }, [user?.email]);
 
     // Calculate stats for cards
     const totalRevenue = todayStats?.totalSalesAmount || 0;
@@ -216,14 +220,14 @@ export default function DashboardPage() {
                 isOpen={showConfirmDialog}
                 onClose={() => setShowConfirmDialog(false)}
                 onConfirm={async () => {
-                    if (!orgId) return;
+                    if (!user?.email) return;
                     setClearing(true);
                     try {
                         const batch = writeBatch(db);
-                        const collections = ['sales', 'dailyStats', 'products'];
+                        const collections = ['products', 'customers', 'sales', 'dailyStats', 'stockMovements'];
 
                         for (const colName of collections) {
-                            const q = query(collection(db, colName), where('orgId', '==', orgId));
+                            const q = query(collection(db, colName), where('orgId', '==', user.email));
                             const snapshot = await getDocs(q);
                             snapshot.docs.forEach(doc => {
                                 if (colName === 'products') {
